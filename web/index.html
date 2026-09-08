@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Радиан — Рабочее пространство</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cactus+Classical+Serif&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- Внешние плагины Editor.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@latest"></script>
+
+    <!-- Базовые стили -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Онбординг -->
+    <div id="welcome-screen">
+        <div class="welcome-card">
+            <h2>Добро пожаловать в Радиан</h2>
+            <p>Для начала работы создайте ваше первое рабочее пространство. Вы сможете назвать его именем компании, отдела или проекта.</p>
+            <input type="text" id="initialWsInput" placeholder="Название рабочего пространства..." value="Основное пространство" onkeydown="if(event.key==='Enter') submitInitialWorkspace()">
+            <button class="btn-save" style="width: 100%; padding: 10px;" onclick="submitInitialWorkspace()">Создать рабочее пространство</button>
+        </div>
+    </div>
+
+    <!-- Кнопка сворачивания НАД надписью ЮНИВЕКТОР -->
+    <button id="sidebarToggleBtn" class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Свернуть / развернуть боковую панель">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="14" height="14" rx="3"></rect>
+            <line x1="7" y1="2" x2="7" y2="16"></line>
+        </svg>
+    </button>
+
+    <!-- Сайдбар -->
+    <div id="sidebar">
+        <div class="brand-header">
+            <span class="brand-title">Радиан</span>
+        </div>
+
+        <div class="workspace-block">
+            <div id="workspaceNameContainer" class="workspace-name-wrap" onclick="startRenameWorkspace()" title="Нажмите, чтобы переименовать">
+                <span id="currentWorkspaceName" class="workspace-name">Загрузка...</span>
+                <span class="edit-icon">✎</span>
+            </div>
+        </div>
+
+        <!-- Кнопка "Создать" -->
+        <div class="create-menu-wrapper">
+            <button class="btn-create-main" onclick="toggleCreateMenu(event)">
+                <span>Создать</span>
+                <span style="font-size: 8px; opacity: 0.7;">▼</span>
+            </button>
+            <ul id="createMenu" class="create-dropdown">
+                <li class="create-dropdown-item" onclick="handleCreateSelect('doc')">
+                    Документ
+                </li>
+                <li class="create-dropdown-item" onclick="handleCreateSelect('folder')">
+                    Папка
+                </li>
+            </ul>
+        </div>
+
+        <!-- Дерево папок и документов -->
+        <div id="tree-container"></div>
+
+        <!-- Строка инлайн-ввода -->
+        <div id="inlineInputRow" class="inline-input-row" style="display: none;">
+            <input type="text" id="inlineTextInput" class="inline-text-input" placeholder="Название..." onkeydown="handleInlineInputKey(event)">
+            <button class="btn-inline-ok" onclick="confirmInlineCreate()">Ок</button>
+            <button class="btn-inline-cancel" title="Отмена (Esc)" onclick="hideInlineInput()">×</button>
+        </div>
+
+        <!-- Подвал сайдбара: только кнопка Настройки -->
+        <div class="sidebar-footer">
+            <button class="btn-settings" onclick="window.SettingsModal.open()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                Настройки
+            </button>
+        </div>
+    </div>
+
+    <!-- Редактор -->
+    <div id="main-content">
+        <div class="top-nav">
+            <div class="title-input-wrap">
+                <input type="text" id="docTitleInput" class="doc-title-input" placeholder="Название документа" oninput="handleTitleChange()">
+            </div>
+            <div class="top-nav-actions">
+                <span id="status" class="status-badge">Готов</span>
+                <button class="btn-save" onclick="saveCurrentDoc(false)">Сохранить</button>
+            </div>
+        </div>
+        <div id="editorjs"></div>
+    </div>
+
+    <!-- Модальное окно Настроек -->
+    <div id="settingsOverlay" onclick="if(event.target === this) window.SettingsModal.close()">
+        <div class="settings-window">
+            <div class="settings-header">
+                <span class="settings-window-title">Настройки</span>
+                <button class="settings-close-btn" onclick="window.SettingsModal.close()">×</button>
+            </div>
+            <div class="settings-layout">
+                <div class="settings-sidebar">
+                    <button class="settings-tab-btn active" onclick="window.SettingsModal.switchTab('modules')">Модули</button>
+                    <button class="settings-tab-btn" onclick="window.SettingsModal.switchTab('themes')">Темы оформления</button>
+                </div>
+                <div class="settings-body">
+                    <!-- Вкладка Модули -->
+                    <div id="tabContentModules" class="settings-tab-pane active">
+                        <div class="settings-section-title">Управление модулями</div>
+                        <div id="settingsModulesList"></div>
+                    </div>
+
+                    <!-- Вкладка Темы -->
+                    <div id="tabContentThemes" class="settings-tab-pane">
+                        <div class="settings-section-title">Выберите цветовую палитру</div>
+                        <div id="settingsThemesList" class="themes-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Скрипты -->
+    <script src="plugin_manager.js"></script>
+    <script src="modules/settings.js"></script>
+    <script src="modules/word_counter.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
