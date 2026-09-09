@@ -1,13 +1,16 @@
 const ICONS = {
     folderClosed: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`,
     folderOpen: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>`,
-    doc: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`
+    doc: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    flipchart: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 15v6"/><path d="M7 8h10"/><path d="M7 11h5"/></svg>`
 };
 
 const ListPlugin = window.EditorjsList || window.List;
 let editor = null;
 let currentWsId = null;
 let currentDocId = null;
+let currentDocType = 'document';
+let activeFlipchartInstance = null;
 let autoSaveTimer = null;
 let isEditorLoading = false;
 let draggedDocId = null;
@@ -154,7 +157,13 @@ function showInlineInput(type, folderId = null) {
     const row = document.getElementById('inlineInputRow');
     const input = document.getElementById('inlineTextInput');
     if (row && input) {
-        input.placeholder = type === 'folder' ? 'Название папки...' : 'Название документа...';
+        if (type === 'folder') {
+            input.placeholder = 'Название папки...';
+        } else if (type === 'flipchart') {
+            input.placeholder = 'Название флипчарта...';
+        } else {
+            input.placeholder = 'Название документа...';
+        }
         row.style.display = 'flex';
         input.value = '';
         input.focus();
@@ -179,8 +188,12 @@ async function confirmInlineCreate() {
     if (inlineCreateType === 'folder') {
         await pywebview.api.create_folder(currentWsId, name || "Новая папка");
         await reloadTree();
+    } else if (inlineCreateType === 'flipchart') {
+        const newId = await pywebview.api.create_flipchart(currentWsId, name || "Новый флипчарт", inlineTargetFolderId);
+        await reloadTree();
+        await openDoc(newId);
     } else {
-        const newId = await pywebview.api.create_document(currentWsId, name || "Новый документ", inlineTargetFolderId);
+        const newId = await pywebview.api.create_document(currentWsId, name || "Новый документ", inlineTargetFolderId, "document");
         await reloadTree();
         await openDoc(newId);
     }
@@ -212,7 +225,8 @@ async function reloadTree() {
                     <span class="folder-name">${folder.name}</span>
                 </div>
                 <div class="folder-actions" onclick="event.stopPropagation()">
-                    <button class="action-btn" title="Добавить документ в папку" onclick="showInlineInput('doc', ${folder.id})">+</button>
+                    <button class="action-btn" title="Добавить документ" onclick="showInlineInput('doc', ${folder.id})">+</button>
+                    <button class="action-btn" title="Добавить флипчарт" onclick="showInlineInput('flipchart', ${folder.id})">🎨</button>
                     <button class="action-btn" title="Переименовать" onclick="startRenameFolder(event, ${folder.id}, '${folder.name.replace(/'/g, "\\'")}')">✎</button>
                     <button class="action-btn" title="Удалить папку" onclick="deleteFolder(event, ${folder.id})">×</button>
                 </div>
@@ -297,14 +311,17 @@ async function deleteFolder(e, folderId) {
 
 function createDocElement(doc, folderId) {
     const li = document.createElement('li');
-    li.className = `doc-item ${doc.id === currentDocId ? 'active' : ''}`;
+    li.className = `doc-item ${doc.id === currentDocId ? 'active' : ''} ${doc.type === 'flipchart' ? 'doc-item-flipchart' : ''}`;
     li.setAttribute('draggable', 'true');
     li.dataset.id = doc.id;
+    li.dataset.type = doc.type || 'document';
     li.dataset.folderId = folderId || "root";
+
+    const iconSvg = doc.type === 'flipchart' ? ICONS.flipchart : ICONS.doc;
 
     li.innerHTML = `
         <span class="doc-drag-handle" title="Перетащить">⠿</span>
-        <span class="doc-icon-svg">${ICONS.doc}</span>
+        <span class="doc-icon-svg">${iconSvg}</span>
         <span class="doc-name">${doc.title}</span>
         <div class="doc-actions">
             <button class="action-btn" title="Удалить" onclick="deleteDoc(event, ${doc.id})">×</button>
@@ -384,55 +401,114 @@ async function openDoc(docId) {
     currentDocId = docId;
 
     try {
+        clearTimeout(autoSaveTimer);
+
         const docData = await pywebview.api.load_document(docId);
         if (!docData) return;
+
+        currentDocType = docData.type || 'document';
 
         const titleInput = document.getElementById('docTitleInput');
         if (titleInput) titleInput.value = docData.title;
         highlightActiveDoc();
 
+        const editorContainer = document.getElementById('editorjs');
+        const flipchartContainer = document.getElementById('flipchart-container');
+        const mainContent = document.getElementById('main-content');
+
+        // Очищаем предыдущий инстанс флипчарта
+        if (activeFlipchartInstance && typeof activeFlipchartInstance.destroy === 'function') {
+            activeFlipchartInstance.destroy();
+            activeFlipchartInstance = null;
+        }
+
+        // Очищаем предыдущий инстанс EditorJS
         if (editor) {
             if (typeof editor.destroy === 'function') {
                 try { await editor.destroy(); } catch (e) {}
             }
             editor = null;
         }
-        
-        const holder = document.getElementById('editorjs');
-        if (holder) holder.innerHTML = '';
 
-        editor = new EditorJS({
-            holder: 'editorjs',
-            placeholder: 'Нажмите Tab для выбора блока или начните ввод...',
-            i18n: ruI18n,
-            minHeight: 50,
-            tools: {
-                header: Header,
-                list: ListPlugin,
-                checklist: Checklist
-            },
-            data: docData.content || {},
-            onChange: () => {
-                clearTimeout(autoSaveTimer);
-                const statusEl = document.getElementById('status');
-                if (statusEl) statusEl.innerText = 'Изменения...';
-                
+        if (currentDocType === 'flipchart') {
+            if (editorContainer) {
+                editorContainer.style.display = 'none';
+                editorContainer.innerHTML = '';
+            }
+            if (flipchartContainer) {
+                flipchartContainer.style.display = 'block';
+                flipchartContainer.innerHTML = '';
+            }
+            if (mainContent) {
+                mainContent.style.overflow = 'hidden';
+                mainContent.style.padding = '16px 24px 20px';
+            }
+
+            if (window.Flipchart) {
+                activeFlipchartInstance = new window.Flipchart('flipchart-container', {
+                    docId: docId,
+                    title: docData.title,
+                    data: docData.content || {},
+                    onChange: (chartData) => {
+                        clearTimeout(autoSaveTimer);
+                        const statusEl = document.getElementById('status');
+                        if (statusEl) statusEl.innerText = 'Изменения...';
+                        autoSaveTimer = setTimeout(() => {
+                            saveCurrentDoc(true, chartData);
+                        }, 1200);
+                    }
+                });
+            }
+
+            const statusEl = document.getElementById('status');
+            if (statusEl) statusEl.innerText = 'Флипчарт готов';
+        } else {
+            if (flipchartContainer) {
+                flipchartContainer.style.display = 'none';
+                flipchartContainer.innerHTML = '';
+            }
+            if (editorContainer) {
+                editorContainer.style.display = 'block';
+                editorContainer.innerHTML = '';
+            }
+            if (mainContent) {
+                mainContent.style.overflowY = 'auto';
+                mainContent.style.padding = '24px 48px 80px';
+            }
+
+            editor = new EditorJS({
+                holder: 'editorjs',
+                placeholder: 'Нажмите Tab для выбора блока или начните ввод...',
+                i18n: ruI18n,
+                minHeight: 50,
+                tools: {
+                    header: Header,
+                    list: ListPlugin,
+                    checklist: Checklist
+                },
+                data: docData.content || {},
+                onChange: () => {
+                    clearTimeout(autoSaveTimer);
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.innerText = 'Изменения...';
+                    
+                    const wordCounter = window.plugins.plugins.get('word_counter');
+                    if (wordCounter && wordCounter.update) wordCounter.update();
+
+                    autoSaveTimer = setTimeout(() => {
+                        saveCurrentDoc(true);
+                    }, 1500);
+                }
+            });
+
+            const statusEl = document.getElementById('status');
+            if (statusEl) statusEl.innerText = 'Готов';
+            
+            setTimeout(() => {
                 const wordCounter = window.plugins.plugins.get('word_counter');
                 if (wordCounter && wordCounter.update) wordCounter.update();
-
-                autoSaveTimer = setTimeout(() => {
-                    saveCurrentDoc(true);
-                }, 1500);
-            }
-        });
-
-        const statusEl = document.getElementById('status');
-        if (statusEl) statusEl.innerText = 'Готов';
-        
-        setTimeout(() => {
-            const wordCounter = window.plugins.plugins.get('word_counter');
-            if (wordCounter && wordCounter.update) wordCounter.update();
-        }, 300);
+            }, 300);
+        }
 
     } finally {
         isEditorLoading = false;
@@ -458,31 +534,40 @@ function handleTitleChange() {
     }, 1000);
 }
 
-async function saveCurrentDoc(isAuto = false) {
-    if (!editor || !currentDocId) return;
+async function saveCurrentDoc(isAuto = false, explicitData = null) {
+    if (!currentDocId) return;
     const statusLabel = document.getElementById('status');
     if (!isAuto && statusLabel) statusLabel.innerText = "Сохранение...";
 
     try {
-        const outputData = await editor.save();
+        let outputData = explicitData;
+
+        if (!outputData) {
+            if (currentDocType === 'flipchart') {
+                outputData = activeFlipchartInstance ? activeFlipchartInstance.getData() : {};
+            } else if (editor) {
+                outputData = await editor.save();
+            }
+        }
+
         const titleInput = document.getElementById('docTitleInput');
         const title = (titleInput && titleInput.value.trim()) ? titleInput.value.trim() : "Без названия";
         const res = await pywebview.api.save_document(currentDocId, title, outputData);
         
-        if (res.status === 'ok') {
+        if (res && res.status === 'ok') {
             if (statusLabel) statusLabel.innerText = `Сохранено (${res.time.split(' ')[1]})`;
             const activeDoc = document.querySelector(`.doc-item[data-id="${currentDocId}"] .doc-name`);
             if (activeDoc) activeDoc.innerText = title;
         }
     } catch (err) {
         if (statusLabel) statusLabel.innerText = "Ошибка сохранения";
-        console.error(err);
+        console.error("Ошибка при сохранении документа:", err);
     }
 }
 
 async function deleteDoc(e, docId) {
     e.stopPropagation();
-    if (confirm("Удалить этот документ?")) {
+    if (confirm("Удалить этот элемент?")) {
         await pywebview.api.delete_document(docId);
         if (currentDocId === docId) currentDocId = null;
         await reloadTree();
