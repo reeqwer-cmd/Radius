@@ -37,6 +37,7 @@ def init_db():
             folder_id INTEGER DEFAULT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'document',
             sort_order INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL,
             FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -53,6 +54,8 @@ def init_db():
         cursor.execute("ALTER TABLE documents ADD COLUMN folder_id INTEGER DEFAULT NULL")
     if "sort_order" not in existing_columns:
         cursor.execute("ALTER TABLE documents ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+    if "type" not in existing_columns:
+        cursor.execute("ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
@@ -65,6 +68,7 @@ def init_db():
     # Регистрируем базовые опциональные модули
     default_modules = [
         ("module_word_counter", "1"),
+        ("module_flipchart", "1"),
     ]
     for key, val in default_modules:
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))

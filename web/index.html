@@ -58,6 +58,9 @@
                 <li class="create-dropdown-item" onclick="handleCreateSelect('doc')">
                     Документ
                 </li>
+                <li class="create-dropdown-item" onclick="handleCreateSelect('flipchart')">
+                    Флипчарт
+                </li>
                 <li class="create-dropdown-item" onclick="handleCreateSelect('folder')">
                     Папка
                 </li>
@@ -86,7 +89,7 @@
         </div>
     </div>
 
-    <!-- Редактор -->
+    <!-- Редактор и Флипчарт -->
     <div id="main-content">
         <div class="top-nav">
             <div class="title-input-wrap">
@@ -98,6 +101,7 @@
             </div>
         </div>
         <div id="editorjs"></div>
+        <div id="flipchart-container" style="display: none; width: 100%; height: calc(100% - 60px); position: relative;"></div>
     </div>
 
     <!-- Модальное окно Настроек -->
@@ -133,6 +137,7 @@
     <script src="plugin_manager.js"></script>
     <script src="modules/settings.js"></script>
     <script src="modules/word_counter.js"></script>
+    <script src="modules/flipchart.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -84,8 +84,9 @@ class Api:
                 }
                 
                 cursor.execute(
-                    "INSERT INTO documents (workspace_id, folder_id, title, content, sort_order, updated_at) VALUES (?, NULL, ?, ?, ?, ?)",
-                    (ws_id, "Главная страница", json.dumps(default_content, ensure_ascii=False), 0, now)
+                    "INSERT INTO documents (workspace_id, folder_id, title, content, type, sort_order, updated_at) "
+                    "VALUES (?, NULL, ?, ?, 'document', 0, ?)",
+                    (ws_id, "Главная страница", json.dumps(default_content, ensure_ascii=False), now)
                 )
                 doc_id = cursor.lastrowid
             return {"workspace_id": ws_id, "workspace_name": name, "initial_doc_id": doc_id}
@@ -103,7 +104,7 @@ class Api:
         finally:
             conn.close()
 
-    # --- ПАПКИ И ДОКУМЕНТЫ ---
+    # --- ПАПКИ И ДОКУМЕНТЫ / ФЛИПЧАРТЫ ---
     def get_workspace_tree(self, ws_id):
         conn = get_db_connection()
         try:
@@ -114,11 +115,22 @@ class Api:
             )
             folders = [{"id": r[0], "name": r[1], "sort_order": r[2]} for r in cursor.fetchall()]
 
+            # Возвращаем также тип сущности ('document' или 'flipchart')
             cursor.execute(
-                "SELECT id, folder_id, title, sort_order FROM documents WHERE workspace_id = ? ORDER BY sort_order ASC, id ASC",
+                "SELECT id, folder_id, title, sort_order, COALESCE(type, 'document') "
+                "FROM documents WHERE workspace_id = ? ORDER BY sort_order ASC, id ASC",
                 (ws_id,)
             )
-            docs = [{"id": r[0], "folder_id": r[1], "title": r[2], "sort_order": r[3]} for r in cursor.fetchall()]
+            docs = [
+                {
+                    "id": r[0],
+                    "folder_id": r[1],
+                    "title": r[2],
+                    "sort_order": r[3],
+                    "type": r[4]
+                }
+                for r in cursor.fetchall()
+            ]
 
             return {"folders": folders, "documents": docs}
         finally:
@@ -164,14 +176,25 @@ class Api:
         finally:
             conn.close()
 
-    def create_document(self, ws_id, title, folder_id=None):
-        title = title.strip() or "Новый документ"
-        empty_content = {
-            "blocks": [
-                {"type": "header", "data": {"text": title, "level": 2}},
-                {"type": "paragraph", "data": {"text": ""}}
-            ]
-        }
+    def create_document(self, ws_id, title, folder_id=None, doc_type="document"):
+        title = title.strip() or ("Новый флипчарт" if doc_type == "flipchart" else "Новый документ")
+        
+        # Начальное состояние в зависимости от типа
+        if doc_type == "flipchart":
+            initial_content = {
+                "viewport": {"x": 0, "y": 0, "zoom": 1.0},
+                "nodes": [],
+                "connections": [],
+                "drawings": []
+            }
+        else:
+            initial_content = {
+                "blocks": [
+                    {"type": "header", "data": {"text": title, "level": 2}},
+                    {"type": "paragraph", "data": {"text": ""}}
+                ]
+            }
+
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         conn = get_db_connection()
@@ -179,28 +202,42 @@ class Api:
             with conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM documents WHERE workspace_id = ? AND (folder_id IS ? OR folder_id = ?)",
+                    "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM documents "
+                    "WHERE workspace_id = ? AND (folder_id IS ? OR folder_id = ?)",
                     (ws_id, folder_id, folder_id)
                 )
                 next_order = cursor.fetchone()[0]
                 
                 cursor.execute(
-                    "INSERT INTO documents (workspace_id, folder_id, title, content, sort_order, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (ws_id, folder_id, title, json.dumps(empty_content, ensure_ascii=False), next_order, now)
+                    "INSERT INTO documents (workspace_id, folder_id, title, content, type, sort_order, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (ws_id, folder_id, title, json.dumps(initial_content, ensure_ascii=False), doc_type, next_order, now)
                 )
                 new_id = cursor.lastrowid
             return new_id
         finally:
             conn.close()
 
+    def create_flipchart(self, ws_id, title="Новый флипчарт", folder_id=None):
+        """Создание флипчарта (прямой метод для фронтенда)."""
+        return self.create_document(ws_id, title, folder_id=folder_id, doc_type="flipchart")
+
     def load_document(self, doc_id):
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT title, content FROM documents WHERE id = ?", (doc_id,))
+            cursor.execute("SELECT title, content, COALESCE(type, 'document') FROM documents WHERE id = ?", (doc_id,))
             row = cursor.fetchone()
             if row:
-                return {"title": row[0], "content": json.loads(row[1])}
+                try:
+                    content_data = json.loads(row[1]) if row[1] else {}
+                except Exception:
+                    content_data = {}
+                return {
+                    "title": row[0],
+                    "content": content_data,
+                    "type": row[2]
+                }
             return None
         finally:
             conn.close()
