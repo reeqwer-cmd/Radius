@@ -2,13 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Main.py",
-      "type": "debugpy",
+      "name": "Run Radius (No Debugger)",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${workspaceFolder}/Main.py",
-      "python": "${workspaceFolder}/venv_win/Scripts/python.exe",
-      "console": "integratedTerminal",
-      "justMyCode": false
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe ${workspaceFolder}/Main.py"
     }
   ]
 }

@@ -28,15 +28,52 @@ const ruI18n = {
             },
             inlineToolbar: { converter: { "Convert to": "Преобразовать в" } },
             toolbar: { toolbox: { "Add": "Добавить", "Filter": "Поиск блока" } },
-            popover: { "Filter": "Поиск...", "Nothing found": "Ничего не найдено", "Convert to": "Преобразовать в" }
+            popover: { 
+                "Filter": "Поиск...", 
+                "Nothing found": "Ничего не найдено", 
+                "Convert to": "Преобразовать в",
+                "Start with": "Начать с",
+                "Counter type": "Тип нумерации",
+                "Numeric": "1. Числовой",
+                "Lower Roman": "i. Римские (строчные)",
+                "Upper Roman": "I. Римские (прописные)",
+                "Lower Alpha": "a. Буквенные (строчные)",
+                "Upper Alpha": "A. Буквенные (прописные)",
+                "Checklist": "Чек-лист"
+            }
         },
         toolNames: {
-            "Text": "Параграф", "Heading": "Заголовок", "List": "Список",
-            "Unordered List": "Маркированный список", "Ordered List": "Нумерованный список",
+            "Text": "Параграф",
+            "Heading": "Заголовок",
+            "List": "Список",
+            "Unordered": "Маркированный список",
+            "Ordered": "Нумерованный список",
+            "Unordered List": "Маркированный список",
+            "Ordered List": "Нумерованный список",
             "Checklist": "Чек-лист"
         },
         tools: {
-            header: { "Heading 1": "Заголовок 1", "Heading 2": "Заголовок 2", "Heading 3": "Заголовок 3" }
+            header: {
+                "Heading 1": "Заголовок 1",
+                "Heading 2": "Заголовок 2",
+                "Heading 3": "Заголовок 3"
+            },
+            list: {
+                "Unordered": "Маркированный список",
+                "Ordered": "Нумерованный список",
+                "Unordered List": "Маркированный список",
+                "Ordered List": "Нумерованный список",
+                "Start with": "Начать с",
+                "Counter type": "Тип нумерации",
+                "Numeric": "1. Числовой",
+                "Lower Roman": "i. Римские (строчные)",
+                "Upper Roman": "I. Римские (прописные)",
+                "Lower Alpha": "a. Буквенные (строчные)",
+                "Upper Alpha": "A. Буквенные (прописные)"
+            },
+            checklist: {
+                "Checklist": "Чек-лист"
+            }
         },
         blockTunes: {
             delete: { "Delete": "Удалить" },
@@ -333,7 +370,14 @@ function createDocElement(doc, folderId) {
     li.addEventListener('dragstart', (e) => {
         draggedDocId = doc.id;
         li.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.effectAllowed = 'copyMove';
+        const payload = JSON.stringify({
+            id: doc.id,
+            title: doc.title,
+            type: doc.type || 'document'
+        });
+        e.dataTransfer.setData('application/x-doc-item', payload);
+        e.dataTransfer.setData('text/plain', payload);
     });
 
     li.addEventListener('dragend', () => {
@@ -416,13 +460,11 @@ async function openDoc(docId) {
         const flipchartContainer = document.getElementById('flipchart-container');
         const mainContent = document.getElementById('main-content');
 
-        // Очищаем предыдущий инстанс флипчарта
         if (activeFlipchartInstance && typeof activeFlipchartInstance.destroy === 'function') {
             activeFlipchartInstance.destroy();
             activeFlipchartInstance = null;
         }
 
-        // Очищаем предыдущий инстанс EditorJS
         if (editor) {
             if (typeof editor.destroy === 'function') {
                 try { await editor.destroy(); } catch (e) {}

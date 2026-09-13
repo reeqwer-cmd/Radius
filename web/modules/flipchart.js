@@ -6,22 +6,29 @@ class Flipchart {
 
         const initial = options.data || {};
         this.viewport = initial.viewport || { x: 0, y: 0, zoom: 1.0 };
-        this.elements = initial.elements || [];
-        this.connections = initial.connections || [];
-        this.drawings = initial.drawings || [];
+        this.elements = Array.isArray(initial.elements) ? initial.elements : [];
+        this.connections = Array.isArray(initial.connections) ? initial.connections : [];
+        this.drawings = Array.isArray(initial.drawings) ? initial.drawings : [];
 
-        this.currentTool = 'select'; // 'select' | 'hand' | 'sticky' | 'pen' | 'connector' | 'eraser'
-        this.currentColor = '#eab308';
+        this.elements.forEach(el => {
+            if (el.width > 280) el.width = el.type === 'doc-link' ? 220 : 200;
+            if (el.height > 220) el.height = el.type === 'doc-link' ? 170 : 140;
+            if (!el.fontSize) el.fontSize = 15;
+            if (!el.titleFontSize) el.titleFontSize = 15;
+        });
+
+        this.baseFontSize = 15;
+        this.currentTool = 'select';
+        this.currentColor = 'var(--accent)';
         this.isPanning = false;
         this.panStart = { x: 0, y: 0 };
 
-        // Состояние рисования
         this.isDrawing = false;
+        this.isErasing = false;
         this.currentStroke = null;
 
-        // Состояние протягивания стрелки в реальном времени
         this.isDraggingArrow = false;
-        this.arrowStart = null; // { elementId, point: 'top'|'bottom'|'left'|'right' }
+        this.arrowStart = null;
         this.tempArrowEnd = { x: 0, y: 0 };
 
         this.initDOM();
@@ -33,59 +40,55 @@ class Flipchart {
     initDOM() {
         this.container.innerHTML = `
             <div class="affine-viewport" style="position:relative; width:100%; height:100%; overflow:hidden; user-select:none;">
-                <div class="affine-canvas-layer" style="position:absolute; inset:0; transform-origin: 0 0;">
-                    <!-- SVG слой стрелок -->
+                <div class="affine-canvas-layer" style="position:absolute; inset:0; transform-origin:0 0;">
                     <svg class="affine-connections-svg" style="position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:2;">
                         <defs>
-                            <marker id="fc-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                                <path d="M 0 0 L 8 4 L 0 8 z" fill="#52a787" />
+                            <marker id="fc-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                                <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--accent)" />
                             </marker>
-                            <marker id="fc-arrow-temp" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                                <path d="M 0 0 L 8 4 L 0 8 z" fill="#eab308" />
+                            <marker id="fc-arrow-temp" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                                <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--accent)" />
                             </marker>
                         </defs>
-                        <g id="permanent-arrows"></g>
-                        <path id="temp-arrow" d="" stroke="#eab308" stroke-width="2" stroke-dasharray="4" fill="none" marker-end="url(#fc-arrow-temp)" style="display:none;"></path>
+                        <g id="permanent-arrows" style="pointer-events:stroke;"></g>
+                        <path id="temp-arrow" d="" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4" fill="none" marker-end="url(#fc-arrow-temp)" style="display:none;"></path>
                     </svg>
-                    <!-- Холст элементов -->
                     <div class="affine-elements-layer" style="position:absolute; inset:0; z-index:3;"></div>
                 </div>
 
-                <!-- Холст рисования пером поверх всего -->
                 <canvas class="affine-draw-canvas" style="position:absolute; inset:0; z-index:4; pointer-events:none;"></canvas>
 
-                <!-- Панель инструментов -->
                 <div class="affine-dock">
                     <div class="dock-group">
                         <button class="dock-btn active" data-tool="select" title="Курсор (V)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7 18 3-7 7-3L3 3z"/></svg>
                         </button>
-                        <button class="dock-btn" data-tool="hand" title="Рука / Панорама (H)">
+                        <button class="dock-btn" data-tool="hand" title="Рука (H)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v7"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 0 1 4 4v4a8 8 0 0 1-16 0v-2"/></svg>
                         </button>
                     </div>
                     <div class="dock-divider"></div>
                     <div class="dock-group">
-                        <button class="dock-btn" data-tool="sticky" title="Добавить наклейку (S)">
+                        <button class="dock-btn" data-tool="sticky" title="Заметка (S)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
                         </button>
-                        <button class="dock-btn" data-tool="connector" title="Стрелка между наклейками (C)">
+                        <button class="dock-btn" data-tool="connector" title="Стрелка (C)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="10 5 19 5 19 14"/></svg>
                         </button>
                         <button class="dock-btn" data-tool="pen" title="Перо (P)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
                         </button>
-                        <button class="dock-btn" data-tool="eraser" title="Очистить рисунки">
+                        <button class="dock-btn" data-tool="eraser" title="Ластик (E)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
                         </button>
                     </div>
                     <div class="dock-divider"></div>
                     <div class="dock-group colors-group">
-                        <span class="color-dot active" data-color="#eab308" style="background:#eab308;" title="Желтый"></span>
+                        <span class="color-dot active" data-color="var(--accent)" style="background:var(--accent);" title="Цвет темы"></span>
+                        <span class="color-dot" data-color="#eab308" style="background:#eab308;" title="Желтый"></span>
                         <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;" title="Синий"></span>
                         <span class="color-dot" data-color="#10b981" style="background:#10b981;" title="Зеленый"></span>
                         <span class="color-dot" data-color="#ec4899" style="background:#ec4899;" title="Розовый"></span>
-                        <span class="color-dot" data-color="#ffffff" style="background:#ffffff;" title="Белый"></span>
                     </div>
                     <div class="dock-divider"></div>
                     <div class="dock-group">
@@ -108,6 +111,7 @@ class Flipchart {
     }
 
     resizeCanvas() {
+        if (!this.viewportEl || !this.drawCanvas) return;
         const rect = this.viewportEl.getBoundingClientRect();
         this.drawCanvas.width = rect.width || window.innerWidth;
         this.drawCanvas.height = rect.height || window.innerHeight;
@@ -115,13 +119,17 @@ class Flipchart {
     }
 
     applyTransform() {
-        this.canvasLayer.style.transform = `translate(${this.viewport.x}px, ${this.viewport.y}px) scale(${this.viewport.zoom})`;
+        if (!this.canvasLayer) return;
+        const zoom = Math.max(0.15, this.viewport.zoom || 1.0);
+        this.canvasLayer.style.transform = `translate(${this.viewport.x || 0}px, ${this.viewport.y || 0}px) scale(${zoom})`;
+
         const zoomEl = this.container.querySelector('#fc-zoom-val');
-        if (zoomEl) zoomEl.innerText = `${Math.round(this.viewport.zoom * 100)}%`;
+        if (zoomEl) zoomEl.innerText = `${Math.round(zoom * 100)}%`;
         this.redrawDrawings();
     }
 
     restoreState() {
+        if (!this.elementsLayer) return;
         this.elementsLayer.innerHTML = '';
         this.elements.forEach(item => this.mountElement(item));
         this.renderConnections();
@@ -131,24 +139,13 @@ class Flipchart {
     initEvents() {
         window.addEventListener('resize', () => this.resizeCanvas());
 
-        // Переключение тулбара
         this.container.querySelectorAll('.dock-btn[data-tool]').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
-                const tool = btn.dataset.tool;
-                if (tool === 'eraser') {
-                    if (confirm("Очистить все рукописные рисунки на холсте?")) {
-                        this.drawings = [];
-                        this.redrawDrawings();
-                        this.triggerChange();
-                    }
-                    return;
-                }
-                this.setTool(tool);
+                this.setTool(btn.dataset.tool);
             };
         });
 
-        // Выбор цвета
         this.container.querySelectorAll('.color-dot').forEach(dot => {
             dot.onclick = (e) => {
                 e.stopPropagation();
@@ -158,15 +155,16 @@ class Flipchart {
             };
         });
 
-        // Сброс масштаба
-        this.container.querySelector('#fc-reset-zoom').onclick = (e) => {
-            e.stopPropagation();
-            this.viewport = { x: 0, y: 0, zoom: 1.0 };
-            this.applyTransform();
-            this.triggerChange();
-        };
+        const resetBtn = this.container.querySelector('#fc-reset-zoom');
+        if (resetBtn) {
+            resetBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.viewport = { x: 0, y: 0, zoom: 1.0 };
+                this.applyTransform();
+                this.triggerChange();
+            };
+        }
 
-        // Клик по полю холста
         this.viewportEl.addEventListener('mousedown', (e) => {
             if (e.target.closest('.affine-dock') || e.target.closest('.affine-element')) return;
 
@@ -174,11 +172,12 @@ class Flipchart {
 
             if (this.currentTool === 'sticky') {
                 this.addElement({
-                    x: Math.round(coords.x - 90),
-                    y: Math.round(coords.y - 60),
-                    width: 180,
-                    height: 120,
-                    color: this.currentColor,
+                    x: Math.round(coords.x - 100),
+                    y: Math.round(coords.y - 70),
+                    width: 200,
+                    height: 140,
+                    fontSize: 15,
+                    type: 'sticky',
                     content: ''
                 });
                 this.setTool('select');
@@ -187,20 +186,24 @@ class Flipchart {
 
             if (this.currentTool === 'pen') {
                 this.isDrawing = true;
+                const strokeColor = this.currentColor.startsWith('var') ? '#F8E794' : this.currentColor;
                 this.currentStroke = {
-                    color: this.currentColor,
+                    color: strokeColor,
                     size: 3,
                     points: [[coords.x, coords.y]]
                 };
                 return;
             }
 
-            // Перемещение фона (панорамирование)
-            if (this.currentTool === 'hand' || e.button === 1 || this.currentTool === 'select') {
-                this.isPanning = true;
-                this.panStart = { x: e.clientX - this.viewport.x, y: e.clientY - this.viewport.y };
-                this.viewportEl.style.cursor = 'grabbing';
+            if (this.currentTool === 'eraser') {
+                this.isErasing = true;
+                this.eraseAt(coords.x, coords.y);
+                return;
             }
+
+            this.isPanning = true;
+            this.panStart = { x: e.clientX - this.viewport.x, y: e.clientY - this.viewport.y };
+            this.viewportEl.style.cursor = 'grabbing';
         });
 
         window.addEventListener('mousemove', (e) => {
@@ -218,10 +221,14 @@ class Flipchart {
                 return;
             }
 
-            // Протягивание временной стрелки
-            if (this.isDraggingArrow && this.arrowStart) {
+            if (this.isErasing) {
                 const coords = this.screenToWorld(e.clientX, e.clientY);
-                this.tempArrowEnd = coords;
+                this.eraseAt(coords.x, coords.y);
+                return;
+            }
+
+            if (this.isDraggingArrow && this.arrowStart) {
+                this.tempArrowEnd = this.screenToWorld(e.clientX, e.clientY);
                 this.renderTempArrow();
             }
         });
@@ -242,49 +249,93 @@ class Flipchart {
                 this.currentStroke = null;
             }
 
+            if (this.isErasing) {
+                this.isErasing = false;
+            }
+
             if (this.isDraggingArrow) {
                 this.isDraggingArrow = false;
-                this.tempArrowEl.style.display = 'none';
+                if (this.tempArrowEl) this.tempArrowEl.style.display = 'none';
 
-                // Проверяем, попали ли на целевой элемент
-                const targetEl = document.elementFromPoint(e.clientX, e.clientY);
-                const dropCard = targetEl ? targetEl.closest('.affine-element') : null;
-                if (dropCard && dropCard.id !== this.arrowStart.elementId) {
-                    this.connections.push({ from: this.arrowStart.elementId, to: dropCard.id });
-                    this.renderConnections();
-                    this.triggerChange();
+                let target = document.elementFromPoint(e.clientX, e.clientY);
+                let dropCard = target ? target.closest('.affine-element') : null;
+
+                if (!dropCard) {
+                    const worldPos = this.screenToWorld(e.clientX, e.clientY);
+                    dropCard = this.elements.find(el => {
+                        return worldPos.x >= el.x && worldPos.x <= (el.x + el.width) &&
+                               worldPos.y >= el.y && worldPos.y <= (el.y + el.height);
+                    });
+                }
+
+                const targetId = dropCard ? (dropCard.id || dropCard.dataset?.id) : null;
+                if (targetId && targetId !== this.arrowStart.elementId) {
+                    const exists = this.connections.some(c => c.from === this.arrowStart.elementId && c.to === targetId);
+                    if (!exists) {
+                        this.connections.push({ from: this.arrowStart.elementId, to: targetId });
+                        this.renderConnections();
+                        this.triggerChange();
+                    }
                 }
                 this.arrowStart = null;
             }
         });
 
-        // Зум колесиком
         this.viewportEl.addEventListener('wheel', (e) => {
+            const scrollable = e.target.closest('.sticky-text, .doc-link-text');
+            if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) {
+                const atTop = scrollable.scrollTop === 0 && e.deltaY < 0;
+                const atBottom = Math.abs(scrollable.scrollHeight - scrollable.clientHeight - scrollable.scrollTop) <= 2 && e.deltaY > 0;
+                if (!atTop && !atBottom) return;
+            }
+
             e.preventDefault();
             const factor = e.deltaY < 0 ? 1.1 : 0.9;
-            const newZoom = Math.min(Math.max(this.viewport.zoom * factor, 0.2), 2.5);
+            const currentZoom = this.viewport.zoom || 1.0;
+            const newZoom = Math.min(Math.max(currentZoom * factor, 0.15), 2.5);
 
             const rect = this.viewportEl.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            this.viewport.x = mouseX - (mouseX - this.viewport.x) * (newZoom / this.viewport.zoom);
-            this.viewport.y = mouseY - (mouseY - this.viewport.y) * (newZoom / this.viewport.zoom);
+            this.viewport.x = mouseX - (mouseX - this.viewport.x) * (newZoom / currentZoom);
+            this.viewport.y = mouseY - (mouseY - this.viewport.y) * (newZoom / currentZoom);
             this.viewport.zoom = newZoom;
 
             this.applyTransform();
             this.triggerChange();
         }, { passive: false });
 
-        // Хоткеи
-        window.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            const k = e.key.toLowerCase();
-            if (k === 'v') this.setTool('select');
-            if (k === 'h') this.setTool('hand');
-            if (k === 's') this.setTool('sticky');
-            if (k === 'p') this.setTool('pen');
-            if (k === 'c') this.setTool('connector');
+        this.viewportEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            this.viewportEl.classList.add('drag-over');
+        });
+
+        this.viewportEl.addEventListener('dragleave', () => {
+            this.viewportEl.classList.remove('drag-over');
+        });
+
+        this.viewportEl.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            this.viewportEl.classList.remove('drag-over');
+            const data = e.dataTransfer.getData('application/x-doc-item') || e.dataTransfer.getData('text/plain');
+            if (!data) return;
+            try {
+                const docData = JSON.parse(data);
+                const coords = this.screenToWorld(e.clientX, e.clientY);
+                let docContent = '';
+                try {
+                    const fullDoc = await pywebview.api.load_document(docData.id);
+                    if (fullDoc && fullDoc.content && fullDoc.content.blocks) {
+                        docContent = fullDoc.content.blocks
+                            .map(b => (b.data && b.data.text) ? b.data.text : '')
+                            .filter(t => t)
+                            .join('\n');
+                    }
+                } catch (err) {}
+                this.addDocLink(docData.id, docData.title, coords.x, coords.y, docContent);
+            } catch (err) {}
         });
     }
 
@@ -295,32 +346,37 @@ class Flipchart {
         });
 
         this.elementsLayer.classList.toggle('mode-connector', tool === 'connector');
+        this.viewportEl.style.cursor = tool === 'pen' ? 'crosshair' : (tool === 'eraser' ? 'cell' : (tool === 'hand' ? 'grab' : 'default'));
+    }
 
-        if (tool === 'pen') {
-            this.viewportEl.style.cursor = 'crosshair';
-            this.drawCanvas.style.pointerEvents = 'auto';
-        } else if (tool === 'hand') {
-            this.viewportEl.style.cursor = 'grab';
-            this.drawCanvas.style.pointerEvents = 'none';
-        } else if (tool === 'sticky') {
-            this.viewportEl.style.cursor = 'copy';
-            this.drawCanvas.style.pointerEvents = 'none';
-        } else {
-            this.viewportEl.style.cursor = 'default';
-            this.drawCanvas.style.pointerEvents = 'none';
+    eraseAt(x, y) {
+        const radius = 22 / (this.viewport.zoom || 1);
+        const count = this.drawings.length;
+        this.drawings = this.drawings.filter(stroke => {
+            if (!stroke.points) return false;
+            return !stroke.points.some(([px, py]) => Math.hypot(px - x, py - y) <= radius);
+        });
+        if (this.drawings.length !== count) {
+            this.redrawDrawings();
+            this.triggerChange();
         }
     }
 
     screenToWorld(clientX, clientY) {
         const rect = this.viewportEl.getBoundingClientRect();
+        const zoom = this.viewport.zoom || 1.0;
         return {
-            x: (clientX - rect.left - this.viewport.x) / this.viewport.zoom,
-            y: (clientY - rect.top - this.viewport.y) / this.viewport.zoom
+            x: (clientX - rect.left - this.viewport.x) / zoom,
+            y: (clientY - rect.top - this.viewport.y) / zoom
         };
     }
 
     addElement(data) {
         const id = 'el_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        data.fontSize = data.fontSize || 15;
+        data.width = data.width || 200;
+        data.height = data.height || 140;
+
         const elementObj = { id, ...data };
         this.elements.push(elementObj);
         this.mountElement(elementObj);
@@ -330,58 +386,131 @@ class Flipchart {
 
     mountElement(data) {
         const el = document.createElement('div');
-        el.className = 'affine-element is-sticky';
+        const isDoc = data.type === 'doc-link';
+        el.className = `affine-element ${isDoc ? 'card-theme-doc' : 'card-theme-note'}`;
         el.id = data.id;
+        el.tabIndex = 0;
         el.style.left = `${data.x}px`;
         el.style.top = `${data.y}px`;
-        el.style.width = `${data.width || 180}px`;
-        el.style.height = `${data.height || 120}px`;
-        el.style.backgroundColor = data.color || '#eab308';
+        el.style.width = `${data.width || (isDoc ? 220 : 200)}px`;
+        el.style.height = `${data.height || (isDoc ? 170 : 140)}px`;
 
-        el.innerHTML = `
-            <div class="affine-el-header">
-                <span class="el-drag-handle" title="Перетащить">⠿</span>
-                <div class="el-controls">
-                    <button class="el-btn btn-del" title="Удалить наклейку">×</button>
+        const fontSize = data.fontSize || 15;
+        const titleFontSize = data.titleFontSize || 15;
+
+        if (isDoc) {
+            el.dataset.docId = data.docId;
+            el.innerHTML = `
+                <div class="sticky-format-toolbar">
+                    <button class="tb-btn btn-bold" title="Жирный"><b>B</b></button>
+                    <button class="tb-btn btn-italic" title="Курсив"><i>I</i></button>
+                    <button class="tb-btn btn-dec" title="Уменьшить шрифт">A−</button>
+                    <button class="tb-btn btn-inc" title="Увеличить шрифт">A+</button>
                 </div>
-            </div>
-            <textarea class="sticky-text" placeholder="Текст наклейки...">${data.content || ''}</textarea>
-            <div class="resize-handle"></div>
-
-            <!-- Точки для протягивания стрелок -->
-            <div class="conn-port port-top" data-port="top"></div>
-            <div class="conn-port port-bottom" data-port="bottom"></div>
-            <div class="conn-port port-left" data-port="left"></div>
-            <div class="conn-port port-right" data-port="right"></div>
-        `;
+                <div class="affine-el-header">
+                    <div class="header-title-wrap">
+                        <span class="el-drag-handle" title="Перетащить">⠿</span>
+                        <span class="element-type-badge doc-badge">ДОКУМЕНТ</span>
+                    </div>
+                    <div class="el-controls">
+                        <button class="el-btn btn-del" title="Удалить">×</button>
+                    </div>
+                </div>
+                <div class="doc-link-content">
+                    <div class="doc-link-title contenteditable-title" contenteditable="true" style="font-size:${titleFontSize}px;">${data.docTitle || 'Документ'}</div>
+                </div>
+                <div class="doc-link-text contenteditable-text" contenteditable="true" style="font-size:${fontSize}px;">${data.docContent || ''}</div>
+                <div class="resize-handle"></div>
+                <div class="conn-port port-top" data-port="top"></div>
+                <div class="conn-port port-bottom" data-port="bottom"></div>
+                <div class="conn-port port-left" data-port="left"></div>
+                <div class="conn-port port-right" data-port="right"></div>
+            `;
+        } else {
+            el.innerHTML = `
+                <div class="sticky-format-toolbar">
+                    <button class="tb-btn btn-bold" title="Жирный"><b>B</b></button>
+                    <button class="tb-btn btn-italic" title="Курсив"><i>I</i></button>
+                    <button class="tb-btn btn-dec" title="Уменьшить шрифт">A−</button>
+                    <button class="tb-btn btn-inc" title="Увеличить шрифт">A+</button>
+                </div>
+                <div class="affine-el-header">
+                    <div class="header-title-wrap">
+                        <span class="el-drag-handle" title="Перетащить">⠿</span>
+                        <span class="element-type-badge note-badge">ЗАМЕТКА</span>
+                    </div>
+                    <div class="el-controls">
+                        <button class="el-btn btn-del" title="Удалить">×</button>
+                    </div>
+                </div>
+                <div class="sticky-text contenteditable-text" contenteditable="true" style="font-size:${fontSize}px;">${data.content || ''}</div>
+                <div class="resize-handle"></div>
+                <div class="conn-port port-top" data-port="top"></div>
+                <div class="conn-port port-bottom" data-port="bottom"></div>
+                <div class="conn-port port-left" data-port="left"></div>
+                <div class="conn-port port-right" data-port="right"></div>
+            `;
+        }
 
         this.elementsLayer.appendChild(el);
         this.initElementInteractions(el, data);
     }
 
+    addDocLink(docId, docTitle, x, y, docContent = '') {
+        const elementObj = {
+            id: 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            type: 'doc-link',
+            docId: docId,
+            docTitle: docTitle,
+            docContent: docContent,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: 220,
+            height: 170,
+            fontSize: 15,
+            titleFontSize: 15,
+            content: docTitle
+        };
+        this.elements.push(elementObj);
+        this.mountElement(elementObj);
+        this.triggerChange();
+        return elementObj;
+    }
+
     initElementInteractions(el, data) {
         const header = el.querySelector('.affine-el-header');
         const resizeHandle = el.querySelector('.resize-handle');
-        const textarea = el.querySelector('textarea');
+        const editorText = el.querySelector('.contenteditable-text');
+        const editorTitle = el.querySelector('.contenteditable-title');
 
-        // 1. Перемещение наклейки
+        let lastFocusedEditable = editorText;
+
+        [editorText, editorTitle].forEach(field => {
+            if (field) {
+                field.addEventListener('focus', () => { lastFocusedEditable = field; });
+                field.addEventListener('click', () => { lastFocusedEditable = field; });
+            }
+        });
+
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
 
         header.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
+            if (e.target.closest('button')) return;
             isDragging = true;
+            const zoom = this.viewport.zoom || 1.0;
             dragOffset = {
-                x: (e.clientX / this.viewport.zoom) - data.x,
-                y: (e.clientY / this.viewport.zoom) - data.y
+                x: (e.clientX / zoom) - data.x,
+                y: (e.clientY / zoom) - data.y
             };
             el.classList.add('dragging');
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            data.x = Math.round((e.clientX / this.viewport.zoom) - dragOffset.x);
-            data.y = Math.round((e.clientY / this.viewport.zoom) - dragOffset.y);
+            const zoom = this.viewport.zoom || 1.0;
+            data.x = Math.round((e.clientX / zoom) - dragOffset.x);
+            data.y = Math.round((e.clientY / zoom) - dragOffset.y);
             el.style.left = `${data.x}px`;
             el.style.top = `${data.y}px`;
             this.renderConnections();
@@ -395,10 +524,10 @@ class Flipchart {
             }
         });
 
-        // 2. Порты стрелок (тянем стрелку из точки)
         el.querySelectorAll('.conn-port').forEach(port => {
             port.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 this.isDraggingArrow = true;
                 this.arrowStart = { elementId: data.id, port: port.dataset.port };
                 this.tempArrowEnd = this.screenToWorld(e.clientX, e.clientY);
@@ -406,46 +535,106 @@ class Flipchart {
             });
         });
 
-        // 3. Изменение размера
         if (resizeHandle) {
-            let isResizing = false;
             let startW, startH, startX, startY;
 
             resizeHandle.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
-                isResizing = true;
+                let isResizing = true;
                 startW = el.offsetWidth;
                 startH = el.offsetHeight;
                 startX = e.clientX;
                 startY = e.clientY;
-            });
 
-            window.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-                const dw = (e.clientX - startX) / this.viewport.zoom;
-                const dh = (e.clientY - startY) / this.viewport.zoom;
-                data.width = Math.max(startW + dw, 120);
-                data.height = Math.max(startH + dh, 80);
-                el.style.width = `${data.width}px`;
-                el.style.height = `${data.height}px`;
-                this.renderConnections();
-            });
+                const onMove = (me) => {
+                    if (!isResizing) return;
+                    const zoom = this.viewport.zoom || 1.0;
+                    data.width = Math.max(startW + (me.clientX - startX) / zoom, 180);
+                    data.height = Math.max(startH + (me.clientY - startY) / zoom, 110);
+                    el.style.width = `${data.width}px`;
+                    el.style.height = `${data.height}px`;
+                    this.renderConnections();
+                };
 
-            window.addEventListener('mouseup', () => {
-                if (isResizing) {
+                const onUp = () => {
                     isResizing = false;
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
                     this.triggerChange();
-                }
+                };
+
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
             });
         }
 
-        // 4. Текст
-        textarea.oninput = () => {
-            data.content = textarea.value;
-            this.triggerChange();
-        };
+        if (editorTitle) {
+            editorTitle.addEventListener('input', () => {
+                data.docTitle = editorTitle.innerText.trim();
+                this.triggerChange();
+            });
+        }
 
-        // 5. Удаление
+        if (editorText) {
+            editorText.addEventListener('input', () => {
+                this.syncTextData(data, editorText);
+            });
+        }
+
+        const toolbar = el.querySelector('.sticky-format-toolbar');
+        if (toolbar) {
+            toolbar.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            const boldBtn = toolbar.querySelector('.btn-bold');
+            if (boldBtn) {
+                boldBtn.onclick = () => {
+                    const targetField = lastFocusedEditable || editorText;
+                    if (targetField) targetField.focus();
+                    document.execCommand('bold');
+                    if (targetField === editorTitle) {
+                        data.docTitle = editorTitle.innerText.trim();
+                        this.triggerChange();
+                    } else {
+                        this.syncTextData(data, editorText);
+                    }
+                };
+            }
+
+            const italicBtn = toolbar.querySelector('.btn-italic');
+            if (italicBtn) {
+                italicBtn.onclick = () => {
+                    const targetField = lastFocusedEditable || editorText;
+                    if (targetField) targetField.focus();
+                    document.execCommand('italic');
+                    if (targetField === editorTitle) {
+                        data.docTitle = editorTitle.innerText.trim();
+                        this.triggerChange();
+                    } else {
+                        this.syncTextData(data, editorText);
+                    }
+                };
+            }
+
+            const incBtn = toolbar.querySelector('.btn-inc');
+            if (incBtn) {
+                incBtn.onclick = () => {
+                    const targetField = lastFocusedEditable || editorText;
+                    this.applyFontSizeDelta(+2, targetField, data, targetField === editorTitle);
+                };
+            }
+
+            const decBtn = toolbar.querySelector('.btn-dec');
+            if (decBtn) {
+                decBtn.onclick = () => {
+                    const targetField = lastFocusedEditable || editorText;
+                    this.applyFontSizeDelta(-2, targetField, data, targetField === editorTitle);
+                };
+            }
+        }
+
         el.querySelector('.btn-del').onclick = (e) => {
             e.stopPropagation();
             this.elements = this.elements.filter(item => item.id !== data.id);
@@ -456,69 +645,141 @@ class Flipchart {
         };
     }
 
+    applyFontSizeDelta(delta, editorEl, data, isTitle = false) {
+        if (!editorEl) return;
+        const sel = window.getSelection();
+        const hasSelection = sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && editorEl.contains(sel.getRangeAt(0).commonAncestorContainer);
+
+        if (hasSelection) {
+            const range = sel.getRangeAt(0);
+            let container = range.commonAncestorContainer;
+            if (container.nodeType === 3) container = container.parentElement;
+            let targetSpan = container.closest('span[style*="font-size"]');
+            let currentSize = targetSpan ? (parseFloat(targetSpan.style.fontSize) || 15) : (parseFloat(window.getComputedStyle(container).fontSize) || 15);
+            const newSize = Math.min(64, Math.max(10, Math.round(currentSize + delta)));
+
+            const span = document.createElement('span');
+            span.style.fontSize = `${newSize}px`;
+            const frag = range.extractContents();
+            span.appendChild(frag);
+            range.insertNode(span);
+            sel.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(span);
+            sel.addRange(newRange);
+        } else {
+            let current = parseFloat(editorEl.style.fontSize) || parseFloat(window.getComputedStyle(editorEl).fontSize) || 15;
+            let next = Math.min(64, Math.max(10, Math.round(current + delta)));
+            editorEl.style.fontSize = `${next}px`;
+            if (isTitle) {
+                data.titleFontSize = next;
+            } else {
+                data.fontSize = next;
+            }
+            editorEl.querySelectorAll('span[style*="font-size"]').forEach(s => s.style.fontSize = '');
+        }
+
+        if (isTitle) {
+            data.docTitle = editorEl.innerText.trim();
+            this.triggerChange();
+        } else {
+            this.syncTextData(data, editorEl);
+        }
+    }
+
+    syncTextData(data, editorText) {
+        if (!editorText) return;
+        if (data.type === 'doc-link') {
+            data.docContent = editorText.innerHTML;
+        } else {
+            data.content = editorText.innerHTML;
+        }
+        this.triggerChange();
+    }
+
     renderTempArrow() {
         const fromEl = this.elements.find(e => e.id === this.arrowStart.elementId);
-        if (!fromEl) return;
-
+        if (!fromEl || !this.tempArrowEl) return;
         const startX = fromEl.x + (fromEl.width / 2);
         const startY = fromEl.y + (fromEl.height / 2);
         const endX = this.tempArrowEnd.x;
         const endY = this.tempArrowEnd.y;
-
-        const dx = Math.max(Math.abs(endX - startX) * 0.4, 30);
-        const d = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
-
-        this.tempArrowEl.setAttribute('d', d);
+        const dx = Math.max(Math.abs(endX - startX) * 0.4, 20);
+        this.tempArrowEl.setAttribute('d', `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`);
         this.tempArrowEl.style.display = 'block';
     }
 
     renderConnections() {
+        if (!this.svgArrowsGroup) return;
         this.svgArrowsGroup.innerHTML = '';
-
-        // Очищаем «битые» соединения (если элемент удален)
         this.connections = this.connections.filter(conn => {
-            const hasFrom = this.elements.some(e => e.id === conn.from);
-            const hasTo = this.elements.some(e => e.id === conn.to);
-            return hasFrom && hasTo;
+            return this.elements.some(e => e.id === conn.from) && this.elements.some(e => e.id === conn.to);
         });
 
-        this.connections.forEach(conn => {
+        this.connections.forEach((conn, index) => {
             const fromEl = this.elements.find(e => e.id === conn.from);
             const toEl = this.elements.find(e => e.id === conn.to);
             if (!fromEl || !toEl) return;
 
-            // Центры наклеек для аккуратных стрелок
             const x1 = fromEl.x + fromEl.width;
             const y1 = fromEl.y + (fromEl.height / 2);
             const x2 = toEl.x;
             const y2 = toEl.y + (toEl.height / 2);
-
-            const dx = Math.max(Math.abs(x2 - x1) * 0.45, 40);
+            const dx = Math.max(Math.abs(x2 - x1) * 0.45, 25);
             const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            hitPath.setAttribute('d', d);
+            hitPath.setAttribute('stroke', 'transparent');
+            hitPath.setAttribute('stroke-width', '16');
+            hitPath.setAttribute('fill', 'none');
+            hitPath.style.cursor = 'pointer';
+            hitPath.style.pointerEvents = 'stroke';
 
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', d);
-            path.setAttribute('stroke', '#52a787');
-            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke', 'var(--accent)');
+            path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
             path.setAttribute('marker-end', 'url(#fc-arrow)');
-            this.svgArrowsGroup.appendChild(path);
+            path.style.pointerEvents = 'none';
+
+            hitPath.addEventListener('mouseenter', () => {
+                path.setAttribute('stroke', '#e06c75');
+                path.setAttribute('stroke-width', '3.5');
+            });
+            hitPath.addEventListener('mouseleave', () => {
+                path.setAttribute('stroke', 'var(--accent)');
+                path.setAttribute('stroke-width', '2');
+            });
+
+            hitPath.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.connections.splice(index, 1);
+                this.renderConnections();
+                this.triggerChange();
+            });
+
+            g.appendChild(hitPath);
+            g.appendChild(path);
+            this.svgArrowsGroup.appendChild(g);
         });
     }
 
     redrawDrawings() {
+        if (!this.ctx || !this.drawCanvas) return;
         this.ctx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
         this.ctx.save();
+        const zoom = this.viewport.zoom || 1.0;
         this.ctx.translate(this.viewport.x, this.viewport.y);
-        this.ctx.scale(this.viewport.zoom, this.viewport.zoom);
+        this.ctx.scale(zoom, zoom);
 
-        const allStrokes = [...this.drawings];
-        if (this.currentStroke) allStrokes.push(this.currentStroke);
-
-        allStrokes.forEach(stroke => {
+        this.drawings.forEach(stroke => {
             if (!stroke.points || stroke.points.length < 2) return;
-            this.ctx.strokeStyle = stroke.color || '#ffffff';
-            this.ctx.lineWidth = stroke.size || 3;
+            this.ctx.strokeStyle = stroke.color || '#F8E794';
+            this.ctx.lineWidth = stroke.size || 2.5;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
 
@@ -529,6 +790,18 @@ class Flipchart {
             }
             this.ctx.stroke();
         });
+
+        if (this.currentStroke && this.currentStroke.points.length > 1) {
+            this.ctx.strokeStyle = this.currentStroke.color || '#F8E794';
+            this.ctx.lineWidth = this.currentStroke.size || 2.5;
+            this.ctx.lineCap = 'round';
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.currentStroke.points[0][0], this.currentStroke.points[0][1]);
+            for (let i = 1; i < this.currentStroke.points.length; i++) {
+                this.ctx.lineTo(this.currentStroke.points[i][0], this.currentStroke.points[i][1]);
+            }
+            this.ctx.stroke();
+        }
 
         this.ctx.restore();
     }
