@@ -173,6 +173,7 @@ class Api:
                 cursor.execute("DELETE FROM documents WHERE workspace_id = ?", (ws_id,))
                 cursor.execute("DELETE FROM folders WHERE workspace_id = ?", (ws_id,))
                 cursor.execute("DELETE FROM calendar_notes WHERE workspace_id = ?", (ws_id,))
+                cursor.execute("DELETE FROM workspace_kanban WHERE workspace_id = ?", (ws_id,))
                 cursor.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
                 
                 cursor.execute("SELECT value FROM settings WHERE key = 'last_workspace_id'")
@@ -222,14 +223,19 @@ class Api:
                 except Exception:
                     calendar_notes[r[0]] = r[1]
 
+            cursor.execute("SELECT content FROM workspace_kanban WHERE workspace_id = ?", (ws_id,))
+            kanban_row = cursor.fetchone()
+            workspace_kanban = json.loads(kanban_row[0]) if kanban_row and kanban_row[0] else None
+
             export_data = {
                 "format": "radian_workspace",
-                "version": 2,
+                "version": 3,
                 "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "workspace": {"name": ws_name},
                 "folders": folders,
                 "documents": documents,
-                "calendar_notes": calendar_notes
+                "calendar_notes": calendar_notes,
+                "workspace_kanban": workspace_kanban
             }
 
             safe_name = "".join(c for c in ws_name if c.isalnum() or c in (' ', '_', '-')).strip()
@@ -317,6 +323,14 @@ class Api:
                         cursor.execute(
                             "INSERT OR REPLACE INTO calendar_notes (workspace_id, date, content, updated_at) VALUES (?, ?, ?, ?)",
                             (new_ws_id, date_str, c_str, now)
+                        )
+
+                    ws_kanban = data.get("workspace_kanban")
+                    if ws_kanban:
+                        k_str = json.dumps(ws_kanban, ensure_ascii=False)
+                        cursor.execute(
+                            "INSERT OR REPLACE INTO workspace_kanban (workspace_id, content, updated_at) VALUES (?, ?, ?)",
+                            (new_ws_id, k_str, now)
                         )
 
                     return {
@@ -410,7 +424,12 @@ class Api:
             conn.close()
 
     def create_document(self, ws_id, title, folder_id=None, doc_type="document"):
-        title = title.strip() or ("Новый флипчарт" if doc_type == "flipchart" else "Новый документ")
+        default_titles = {
+            "flipchart": "Новый флипчарт",
+            "kanban": "Новый канбан",
+            "document": "Новый документ"
+        }
+        title = title.strip() or default_titles.get(doc_type, "Новый документ")
         
         if doc_type == "flipchart":
             initial_content = {
@@ -418,6 +437,14 @@ class Api:
                 "elements": [],
                 "connections": [],
                 "drawings": []
+            }
+        elif doc_type == "kanban":
+            initial_content = {
+                "columns": [
+                    {"id": "col-todo", "title": "К выполнению", "cards": []},
+                    {"id": "col-in-progress", "title": "В работе", "cards": []},
+                    {"id": "col-done", "title": "Готово", "cards": []}
+                ]
             }
         else:
             initial_content = {
@@ -461,6 +488,9 @@ class Api:
 
     def create_flipchart(self, ws_id, title="Новый флипчарт", folder_id=None):
         return self.create_document(ws_id, title, folder_id=folder_id, doc_type="flipchart")
+
+    def create_kanban(self, ws_id, title="Новый канбан", folder_id=None):
+        return self.create_document(ws_id, title, folder_id=folder_id, doc_type="kanban")
 
     def load_document(self, doc_id):
         conn = get_db_connection()
@@ -605,5 +635,45 @@ class Api:
                         has_content = bool(c.strip())
                 result[d] = has_content
             return result
+        finally:
+            conn.close()
+
+    # --- КАНБАН ПРОЕКТА (МОДУЛЬ РАБОЧЕГО ПРОСТРАНСТВА) ---
+    def get_workspace_kanban(self, ws_id):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT content FROM workspace_kanban WHERE workspace_id = ?", (ws_id,))
+            row = cursor.fetchone()
+            if row and row[0]:
+                try:
+                    return json.loads(row[0])
+                except Exception:
+                    pass
+            return {
+                "columns": [
+                    {"id": "col-plan", "title": "План проекта", "cards": []},
+                    {"id": "col-prog", "title": "В разработке", "cards": []},
+                    {"id": "col-test", "title": "Тестирование", "cards": []},
+                    {"id": "col-done", "title": "Готово", "cards": []}
+                ]
+            }
+        finally:
+            conn.close()
+
+    def save_workspace_kanban(self, ws_id, data):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = get_db_connection()
+        try:
+            content_str = json.dumps(data, ensure_ascii=False) if isinstance(data, (dict, list)) else str(data)
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT OR REPLACE INTO workspace_kanban (workspace_id, content, updated_at) VALUES (?, ?, ?)",
+                    (ws_id, content_str, now)
+                )
+            return {"status": "ok", "time": now}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
         finally:
             conn.close()

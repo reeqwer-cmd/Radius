@@ -156,6 +156,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span className="slider"></span>
                   </label>
                 </div>
+
+                <div className="module-card">
+                  <div className="module-info">
+                    <div className="module-header-line">
+                      <span className="module-name">Канбан проекта</span>
+                      <span className="module-badge optional">Модуль</span>
+                    </div>
+                    <div className="module-desc">Сквозная доска задач для текущего рабочего пространства.</div>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={modulesState['module_kanban'] ?? true}
+                      onChange={e => onToggleModule('module_kanban', e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
               </div>
             )}
 

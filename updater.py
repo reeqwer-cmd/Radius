@@ -4,16 +4,19 @@ import json
 import urllib.request
 import tempfile
 import subprocess
+import time
 
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.0.6"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 
 def get_executable_path():
+    """Возвращает путь к реальному запущенному .exe файлу."""
     if getattr(sys, 'frozen', False):
         return sys.executable
     return os.path.abspath(sys.argv[0])
 
 def check_for_updates():
+    """Проверяет наличие новых релизов на GitHub."""
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
     headers = {
         "User-Agent": "Radius-App",
@@ -44,7 +47,7 @@ def check_for_updates():
             download_url = None
             assets = latest_release.get("assets", [])
 
-            # Ищем любой исполняемый файл в ассетах
+            # Ищем любой исполняемый файл в ассетах релиза
             for asset in assets:
                 name = asset.get("name", "").lower()
                 if name.endswith(".exe"):
@@ -65,6 +68,7 @@ def check_for_updates():
         return {"has_update": False, "error": str(e), "current_version": APP_VERSION}
 
 def download_and_install_update(download_url):
+    """Скачивает новый бинарник, завершает текущий процесс и производит замену."""
     if not download_url:
         return {"status": "error", "message": "Файл обновления не найден в релизе"}
 
@@ -92,16 +96,28 @@ def download_and_install_update(download_url):
 
     pid = os.getpid()
     bat_path = os.path.join(temp_dir, "radian_patcher.bat")
+
+    # Скрипт патчинга: ждет закрытия процесса, циклически перезаписывает exe и запускает его
     bat_script = f"""@echo off
 chcp 65001 > nul
+
 :wait_loop
 tasklist /fi "PID eq {pid}" | findstr /i "{pid}" > nul
 if not errorlevel 1 (
+    taskkill /f /pid {pid} > nul 2>&1
     timeout /t 1 /nobreak > nul
     goto wait_loop
 )
 
-move /y "{new_exe_path}" "{target_exe}" > nul
+timeout /t 1 /nobreak > nul
+
+:move_loop
+move /y "{new_exe_path}" "{target_exe}" > nul 2>&1
+if errorlevel 1 (
+    timeout /t 1 /nobreak > nul
+    goto move_loop
+)
+
 start "" "{target_exe}"
 del "%~f0"
 exit
@@ -109,9 +125,28 @@ exit
     with open(bat_path, "w", encoding="utf-8") as f:
         f.write(bat_script)
 
+    # Запуск батника в полностью автономном detached-процессе
+    creation_flags = 0
+    if os.name == 'nt':
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        creation_flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
     subprocess.Popen(
         ["cmd.exe", "/c", bat_path],
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+        creationflags=creation_flags,
         close_fds=True
     )
-    sys.exit(0)
+
+    # 1. Корректно закрываем окна pywebview для освобождения дескрипторов
+    try:
+        import webview
+        for win in webview.windows:
+            win.destroy()
+    except Exception:
+        pass
+
+    time.sleep(0.3)
+
+    # 2. Мгновенно выходим без всплывающих окон
+    os._exit(0)

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Folder, FolderOpen, FileText, Layout, GripVertical, Settings, 
   ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation,
-  Check, Trash2, Calendar as CalendarIcon
+  Check, Trash2, Calendar as CalendarIcon, Columns3
 } from 'lucide-react';
 import { WorkspaceTree, DocItem, DocType, WorkspaceItem, FolderItem, TreeOrderItem } from '../types/api';
 
@@ -12,10 +12,11 @@ interface SidebarProps {
   allWorkspaces: WorkspaceItem[];
   currentWsId: number | null;
   currentDocId: number | null;
-  activeView: 'editor' | 'calendar';
+  activeView: 'editor' | 'calendar' | 'project_kanban';
   modulesState: Record<string, boolean>;
   onSelectDoc: (id: number) => void;
   onSelectCalendar: () => void;
+  onSelectProjectKanban: () => void;
   onSelectWorkspace: (wsId: number) => Promise<void>;
   onCreateWorkspacePrompt: () => void;
   onDeleteWorkspacePrompt: (wsId: number) => void;
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   modulesState,
   onSelectDoc,
   onSelectCalendar,
+  onSelectProjectKanban,
   onSelectWorkspace,
   onCreateWorkspacePrompt,
   onDeleteWorkspacePrompt,
@@ -68,7 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
 
-  // Drag-and-drop состояние
   const [draggedEntity, setDraggedEntity] = useState<
     { type: 'folder'; id: number } | { type: 'doc'; id: number; fromFolderId: number | null } | null
   >(null);
@@ -119,25 +120,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (inlineInput.type === 'folder') {
       onCreateFolder(name || 'Новая папка');
     } else {
-      onCreateDoc(name || (inlineInput.type === 'flipchart' ? 'Новый флипчарт' : 'Новый документ'), inlineInput.folderId, inlineInput.type);
+      const defaultTitle = inlineInput.type === 'flipchart' 
+        ? 'Новый флипчарт' 
+        : (inlineInput.type === 'kanban' ? 'Новый канбан' : 'Новый документ');
+      onCreateDoc(name || defaultTitle, inlineInput.folderId, inlineInput.type);
     }
     setInlineInput({ visible: false, type: 'document', folderId: null, value: '' });
   };
 
-  // --- ЕДИНЫЙ СПИСОК ВЕРХНЕГО УРОВНЯ (ПАПКИ И ДОКУМЕНТЫ ВМЕСТЕ) ---
   const rootItems: RootItem[] = [
     ...tree.folders.map(f => ({ kind: 'folder' as const, item: f })),
     ...tree.documents.filter(d => d.folder_id === null).map(d => ({ kind: 'doc' as const, item: d }))
   ].sort((a, b) => (a.item.sort_order ?? 0) - (b.item.sort_order ?? 0));
 
-  // Перемещение элемента в корневом списке (папка на документ, документ на папку, документ на документ)
   const handleDropOnRootItem = (e: React.DragEvent, targetItem: RootItem) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!draggedEntity) return;
 
-    // Собираем текущий список верхнего уровня без перетаскиваемого элемента
     const currentRoots = [...rootItems].filter(r => {
       if (draggedEntity.type === 'folder') {
         return !(r.kind === 'folder' && r.item.id === draggedEntity.id);
@@ -166,7 +167,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     currentRoots.splice(insertAt, 0, inserted);
 
-    // Пересчитываем сквозной sort_order для всех элементов корня
     const updates: TreeOrderItem[] = currentRoots.map((r, index) => ({
       type: r.kind,
       id: r.item.id,
@@ -178,7 +178,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setDraggedEntity(null);
   };
 
-  // Перемещение документа внутри папки
   const handleDropOnFolderDoc = (e: React.DragEvent, targetDoc: DocItem) => {
     e.preventDefault();
     e.stopPropagation();
@@ -208,14 +207,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setDraggedEntity(null);
   };
 
-  // Бросок документа внутрь папки (в шапку папки или в пустое место)
   const handleDropIntoFolder = (e: React.DragEvent, targetFolderId: number) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!draggedEntity) return;
 
-    // Если тащим документ — закидываем его в папку
     if (draggedEntity.type === 'doc') {
       const siblings = tree.documents
         .filter(d => d.folder_id === targetFolderId && d.id !== draggedEntity.id)
@@ -236,7 +233,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return;
     }
 
-    // Если тащим папку на другую папку — меняем порядок в корневом списке
     if (draggedEntity.type === 'folder' && draggedEntity.id !== targetFolderId) {
       const targetFolder = tree.folders.find(f => f.id === targetFolderId);
       if (targetFolder) {
@@ -246,6 +242,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isCalendarEnabled = modulesState['module_calendar'] !== false;
+  const isKanbanEnabled = modulesState['module_kanban'] !== false;
+
+  const renderDocIcon = (type: DocType) => {
+    if (type === 'flipchart') return <Layout size={14} />;
+    if (type === 'kanban') return <Columns3 size={14} />;
+    return <FileText size={14} />;
+  };
 
   return (
     <>
@@ -271,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             border: '1px solid var(--border-color)',
             borderRadius: 8,
             padding: '8px 10px',
-            marginBottom: 14,
+            marginBottom: 12,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -337,7 +340,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <MoreVertical size={15} />
           </button>
 
-          {/* Выпадающий список пространств */}
           {wsDropdownOpen && (
             <div
               style={{
@@ -423,7 +425,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          {/* Меню экспорта/импорта/переименования */}
           {wsMenuOpen && (
             <div
               style={{
@@ -511,23 +512,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Кнопка перехода в календарь (отображается, если модуль включен) */}
-        {isCalendarEnabled && (
-          <div
-            className={`doc-item ${activeView === 'calendar' ? 'active' : ''}`}
-            onClick={onSelectCalendar}
-            style={{
-              marginBottom: 10,
-              cursor: 'pointer',
-              fontWeight: activeView === 'calendar' ? 700 : 500
-            }}
-          >
-            <span className="doc-icon-svg">
-              <CalendarIcon size={14} />
-            </span>
-            <span className="doc-name">Календарь заметок</span>
-          </div>
-        )}
+        {/* Сквозные подключаемые модули */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 12 }}>
+          {isCalendarEnabled && (
+            <div
+              className={`doc-item ${activeView === 'calendar' ? 'active' : ''}`}
+              onClick={onSelectCalendar}
+              style={{
+                cursor: 'pointer',
+                fontWeight: activeView === 'calendar' ? 700 : 500
+              }}
+            >
+              <span className="doc-icon-svg">
+                <CalendarIcon size={14} />
+              </span>
+              <span className="doc-name">Календарь заметок</span>
+            </div>
+          )}
+
+          {isKanbanEnabled && (
+            <div
+              className={`doc-item ${activeView === 'project_kanban' ? 'active' : ''}`}
+              onClick={onSelectProjectKanban}
+              style={{
+                cursor: 'pointer',
+                fontWeight: activeView === 'project_kanban' ? 700 : 500
+              }}
+            >
+              <span className="doc-icon-svg">
+                <Columns3 size={14} />
+              </span>
+              <span className="doc-name">Канбан проекта</span>
+            </div>
+          )}
+        </div>
 
         {/* Заголовок документов с кнопкой добавления */}
         <div
@@ -576,7 +594,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 border: '1px solid var(--border-color)',
                 borderRadius: 8,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                minWidth: 160,
+                minWidth: 170,
                 zIndex: 100,
                 padding: '4px 0',
                 display: 'flex',
@@ -636,6 +654,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   gap: 8,
                   fontSize: 12,
                   cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  setInlineInput({ visible: true, type: 'kanban', folderId: null, value: '' });
+                }}
+              >
+                <Columns3 size={14} />
+                <span>Канбан задачи</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
                   textAlign: 'left',
                   borderTop: '1px solid var(--border-color)'
                 }}
@@ -656,7 +695,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id="tree-container"
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
-            // Если бросили в пустое место контейнера в самом низу
             if (rootItems.length > 0) {
               handleDropOnRootItem(e, rootItems[rootItems.length - 1]);
             }
@@ -709,6 +747,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
                       <button 
                         className="action-btn" 
+                        title="Добавить канбан" 
+                        onClick={() => setInlineInput({ visible: true, type: 'kanban', folderId: folder.id, value: '' })}
+                      >
+                        <Columns3 size={13} />
+                      </button>
+                      <button 
+                        className="action-btn" 
                         title="Переименовать" 
                         onClick={() => {
                           const newN = prompt('Название папки:', folder.name);
@@ -750,7 +795,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onClick={() => onSelectDoc(doc.id)}
                         >
                           <span className="doc-drag-handle"><GripVertical size={12} /></span>
-                          <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
+                          <span className="doc-icon-svg">{renderDocIcon(doc.type)}</span>
                           <span className="doc-name">{doc.title}</span>
                           <div className="doc-actions" onClick={e => e.stopPropagation()}>
                             <button className="action-btn" onClick={() => { if (confirm('Удалить документ?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
@@ -762,7 +807,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               );
             } else {
-              // Корневой документ верхнего уровня (может быть ВЫШЕ, МЕЖДУ или НИЖЕ любой папки!)
               const doc = rootNode.item;
               return (
                 <div
@@ -779,7 +823,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   style={{ marginBottom: 2 }}
                 >
                   <span className="doc-drag-handle"><GripVertical size={12} /></span>
-                  <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
+                  <span className="doc-icon-svg">{renderDocIcon(doc.type)}</span>
                   <span className="doc-name">{doc.title}</span>
                   <div className="doc-actions" onClick={e => e.stopPropagation()}>
                     <button className="action-btn" onClick={() => { if (confirm('Удалить элемент?')) onDeleteDoc(doc.id); }}><X size={12} /></button>

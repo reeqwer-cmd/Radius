@@ -56,6 +56,16 @@ def init_db():
             FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workspace_kanban (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workspace_id INTEGER NOT NULL UNIQUE,
+            content TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        )
+    """)
     
     cursor.execute("PRAGMA table_info(documents)")
     existing_columns = [row[1] for row in cursor.fetchall()]
@@ -81,6 +91,7 @@ def init_db():
         ("module_word_counter", "1"),
         ("module_flipchart", "1"),
         ("module_calendar", "1"),
+        ("module_kanban", "1"),
     ]
     for key, val in default_modules:
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))

@@ -189,7 +189,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = () => {
     if (isPanning) {
       setIsPanning(false);
       triggerChange();
@@ -204,7 +204,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     }
 
     if (dragArrow) {
-      const coords = screenToWorld(e.clientX, e.clientY);
+      const coords = { x: dragArrow.currentX, y: dragArrow.currentY };
       const target = elements.find(el =>
         coords.x >= el.x && coords.x <= el.x + (el.width || 240) &&
         coords.y >= el.y && coords.y <= el.y + (el.height || 170)
@@ -229,7 +229,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     if (!Array.isArray(blocks)) return '';
     return blocks.map(b => {
       if (!b || !b.data) return '';
-      // Чек-листы из EditorJS
       if (b.type === 'checklist' && Array.isArray(b.data.items)) {
         return b.data.items.map((it: any) => {
           const text = typeof it === 'string' ? it : (it.text || it.content || '');
@@ -237,7 +236,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
           return `<div style="display:flex;align-items:flex-start;gap:6px;margin:3px 0;"><span style="color:var(--accent);font-weight:bold;">${checked ? '☑' : '☐'}</span><span>${text}</span></div>`;
         }).join('');
       }
-      // Списки
       if (b.type === 'list' && Array.isArray(b.data.items)) {
         return b.data.items.map((it: any) => {
           const text = typeof it === 'string' ? it : (it.content || it.text || '');
@@ -329,6 +327,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     alert('Документ не найден');
   };
 
+  // Перемещение карточки
   const startDragCard = (e: React.MouseEvent, el: any) => {
     e.stopPropagation();
     const startX = e.clientX;
@@ -340,6 +339,36 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
       const zoom = stateRef.current.viewport.zoom || 1.0;
       el.x = Math.round(initX + (me.clientX - startX) / zoom);
       el.y = Math.round(initY + (me.clientY - startY) / zoom);
+      setElements([...stateRef.current.elements]);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      triggerChange();
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // Изменение ширины и высоты карточки с учётом зума
+  const startResizeCard = (e: React.MouseEvent, el: any) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initW = el.width || 240;
+    const initH = el.height || 170;
+
+    const onMove = (me: MouseEvent) => {
+      const zoom = stateRef.current.viewport.zoom || 1.0;
+      const deltaX = (me.clientX - startX) / zoom;
+      const deltaY = (me.clientY - startY) / zoom;
+
+      el.width = Math.max(160, Math.round(initW + deltaX));
+      el.height = Math.max(120, Math.round(initH + deltaY));
       setElements([...stateRef.current.elements]);
     };
 
@@ -386,7 +415,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     return { p1, p2 };
   };
 
-  // Мгновенное сохранение размера шрифта как заголовка, так и текста
   const changeFontSize = (el: any, delta: number, isTitle = false) => {
     const updated = elements.map(item => {
       if (item.id === el.id) {
@@ -603,7 +631,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
                   </div>
 
                   {isDoc && (
-                    <div className="doc-link-content" style={{ padding: '6px 10px', borderBottom: '1px solid var(--border-color)' }}>
+                    <div className="doc-link-content" style={{ padding: '6px 10px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
                       <div
                         className="doc-link-title contenteditable-title"
                         contentEditable
@@ -639,6 +667,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
                     }}
                   />
 
+                  {/* Порт для связей справа */}
                   <div
                     className="conn-port port-right"
                     title="Потяните стрелку к любой другой карточке"
@@ -652,6 +681,30 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
                       });
                     }}
                   />
+
+                  {/* Маркер изменения размеров в правом нижнем углу */}
+                  <div
+                    className="card-resize-handle"
+                    title="Потяните для изменения размера"
+                    onMouseDown={e => startResizeCard(e, el)}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      bottom: 0,
+                      width: 18,
+                      height: 18,
+                      cursor: 'se-resize',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'flex-end',
+                      padding: '2px',
+                      zIndex: 10
+                    }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M8 2L2 8M9 5L5 9M9 8L8 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.45" />
+                    </svg>
+                  </div>
                 </div>
               );
             })}

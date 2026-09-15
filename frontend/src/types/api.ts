@@ -1,4 +1,4 @@
-export type DocType = 'document' | 'flipchart';
+export type DocType = 'document' | 'flipchart' | 'kanban';
 
 export interface FolderItem {
   id: number;
@@ -64,6 +64,23 @@ export interface TreeOrderItem {
   sort_order: number;
 }
 
+export interface KanbanCard {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  cards: KanbanCard[];
+}
+
+export interface KanbanBoardData {
+  columns: KanbanColumn[];
+}
+
 export interface PyWebViewAPI {
   get_theme(): Promise<string>;
   set_theme(themeName: string): Promise<boolean>;
@@ -87,6 +104,7 @@ export interface PyWebViewAPI {
   delete_folder(folderId: number): Promise<boolean>;
   create_document(wsId: number, title: string, folderId?: number | null, docType?: DocType): Promise<number>;
   create_flipchart(wsId: number, title?: string, folderId?: number | null): Promise<number>;
+  create_kanban(wsId: number, title?: string, folderId?: number | null): Promise<number>;
   load_document(docId: number): Promise<LoadedDocument | null>;
   save_document(docId: number, title: string, data: any): Promise<SaveDocResponse>;
   reorder_tree_items(wsId: number, items: TreeOrderItem[]): Promise<boolean>;
@@ -94,6 +112,8 @@ export interface PyWebViewAPI {
   get_calendar_note(wsId: number, dateStr: string): Promise<any>;
   save_calendar_note(wsId: number, dateStr: string, content: any): Promise<SaveDocResponse>;
   get_calendar_notes_month(wsId: number, yearMonth: string): Promise<Record<string, boolean>>;
+  get_workspace_kanban(wsId: number): Promise<KanbanBoardData>;
+  save_workspace_kanban(wsId: number, data: KanbanBoardData): Promise<SaveDocResponse>;
 }
 
 declare global {

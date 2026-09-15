@@ -4,8 +4,9 @@ import { Sidebar } from './components/Sidebar';
 import { EditorView } from './components/EditorView';
 import { FlipchartView } from './components/FlipchartView';
 import { CalendarView } from './components/CalendarView';
+import { KanbanView } from './components/KanbanView';
 import { SettingsModal } from './components/SettingsModal';
-import { WorkspaceTree, LoadedDocument, DocType, UpdateInfo, WorkspaceItem, TreeOrderItem } from './types/api';
+import { WorkspaceTree, LoadedDocument, DocType, UpdateInfo, WorkspaceItem, TreeOrderItem, KanbanBoardData } from './types/api';
 
 export default function App() {
   const { isReady, api } = usePyWebView();
@@ -20,7 +21,8 @@ export default function App() {
   const [theme, setTheme] = useState<string>('emerald_green');
   const [font, setFont] = useState<string>('Inter');
   const [modulesState, setModulesState] = useState<Record<string, boolean>>({});
-  const [activeView, setActiveView] = useState<'editor' | 'calendar'>('editor');
+  const [activeView, setActiveView] = useState<'editor' | 'calendar' | 'project_kanban'>('editor');
+  const [projectKanbanData, setProjectKanbanData] = useState<KanbanBoardData | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [status, setStatus] = useState('Готов');
@@ -89,6 +91,9 @@ export default function App() {
     setWorkspaceId(newWsId);
     setWorkspaceName(target ? target.name : 'Пространство');
     await refreshTree(newWsId);
+    if (activeView === 'project_kanban') {
+      loadProjectKanban(newWsId);
+    }
   };
 
   const loadDoc = async (id: number) => {
@@ -99,8 +104,34 @@ export default function App() {
       setCurrentDocId(id);
       setCurrentDoc(data);
       setDocTitle(data.title);
-      setStatus(data.type === 'flipchart' ? 'Флипчарт готов' : 'Готов');
+      const badgeText = data.type === 'flipchart' ? 'Флипчарт готов' : (data.type === 'kanban' ? 'Канбан готов' : 'Готов');
+      setStatus(badgeText);
     }
+  };
+
+  const loadProjectKanban = async (wsId: number) => {
+    if (!api) return;
+    setActiveView('project_kanban');
+    setCurrentDocId(null);
+    setStatus('Готов');
+    const data = await api.get_workspace_kanban(wsId);
+    setProjectKanbanData(data);
+  };
+
+  const handleSaveProjectKanban = (updatedData: KanbanBoardData) => {
+    setProjectKanbanData(updatedData);
+    setStatus('Изменения...');
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      if (!api || !workspaceId) return;
+      const res = await api.save_workspace_kanban(workspaceId, updatedData);
+      if (res && res.status === 'ok') {
+        setStatus(`Сохранено (${res.time?.split(' ')[1] || ''})`);
+      } else {
+        setStatus('Ошибка сохранения');
+      }
+    }, 1000);
   };
 
   const triggerAutoSave = (updatedContent?: any, newTitle?: string) => {
@@ -115,7 +146,7 @@ export default function App() {
 
       const res = await api.save_document(currentDocId, titleToSave, contentToSave);
       if (res && res.status === 'ok') {
-        setStatus(`Сохранено (${res.time?.split(' ')[1]})`);
+        setStatus(`Сохранено (${res.time?.split(' ')[1] || ''})`);
         setTree(prev => ({
           ...prev,
           documents: prev.documents.map(d => d.id === currentDocId ? { ...d, title: titleToSave } : d)
@@ -223,6 +254,7 @@ export default function App() {
         modulesState={modulesState}
         onSelectDoc={loadDoc}
         onSelectCalendar={() => setActiveView('calendar')}
+        onSelectProjectKanban={() => { if (workspaceId) loadProjectKanban(workspaceId); }}
         onSelectWorkspace={handleSelectWorkspace}
         onCreateWorkspacePrompt={() => { const name = prompt('Название пространства:'); if (name && name.trim()) handleCreateWorkspace(name.trim()); }}
         onDeleteWorkspacePrompt={handleDeleteWorkspace}
@@ -238,9 +270,9 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <div id="main-content" style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', padding: activeView === 'calendar' ? '24px 32px' : (currentDoc?.type === 'flipchart' ? '14px 20px' : '24px 48px 40px'), overflow: 'hidden', boxSizing: 'border-box' }}>
+      <div id="main-content" style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', padding: activeView === 'calendar' ? '24px 32px' : (currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || activeView === 'project_kanban' ? '14px 20px' : '24px 48px 40px'), overflow: 'hidden', boxSizing: 'border-box' }}>
         {activeView === 'editor' && (
-          <div className="top-nav" style={{ marginBottom: currentDoc?.type === 'flipchart' ? '10px' : '20px' }}>
+          <div className="top-nav" style={{ marginBottom: currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' ? '10px' : '20px' }}>
             <div className="title-input-wrap">
               <input type="text" className="doc-title-input" placeholder="Название документа" value={docTitle} onChange={e => { setDocTitle(e.target.value); triggerAutoSave(undefined, e.target.value); }} />
             </div>
@@ -251,8 +283,27 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ flex: 1, position: 'relative', overflow: activeView === 'calendar' || currentDoc?.type === 'flipchart' ? 'hidden' : 'auto', minHeight: 0 }}>
+        {activeView === 'project_kanban' && (
+          <div className="top-nav" style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>
+              Канбан проекта: {workspaceName}
+            </div>
+            <div className="top-nav-actions">
+              <span id="status" className="status-badge">{status}</span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex: 1, position: 'relative', overflow: activeView === 'calendar' || currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || activeView === 'project_kanban' ? 'hidden' : 'auto', minHeight: 0 }}>
           {activeView === 'calendar' && <CalendarView workspaceId={workspaceId} api={api} />}
+
+          {activeView === 'project_kanban' && (
+            <KanbanView
+              key={`proj_${workspaceId}`}
+              data={projectKanbanData}
+              onChange={handleSaveProjectKanban}
+            />
+          )}
 
           {activeView === 'editor' && currentDoc && currentDoc.type === 'document' && (
             <EditorView key={currentDocId} data={currentDoc.content} onChange={updated => triggerAutoSave(updated)} />
@@ -260,6 +311,14 @@ export default function App() {
 
           {activeView === 'editor' && currentDoc && currentDoc.type === 'flipchart' && (
             <FlipchartView key={currentDocId} data={currentDoc.content} api={api} onOpenDocument={loadDoc} onChange={updated => triggerAutoSave(updated)} />
+          )}
+
+          {activeView === 'editor' && currentDoc && currentDoc.type === 'kanban' && (
+            <KanbanView
+              key={currentDocId}
+              data={currentDoc.content}
+              onChange={updated => triggerAutoSave(updated)}
+            />
           )}
         </div>
       </div>

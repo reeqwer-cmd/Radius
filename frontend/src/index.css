@@ -1184,3 +1184,65 @@ input:checked + .slider:before {
 .port-bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
 .port-left   { left: -6px; top: 50%; transform: translateY(-50%); }
 .port-right  { right: -6px; top: 50%; transform: translateY(-50%); }
+/* =========================================================
+   КАСТОМИЗАЦИЯ ЧЕКБОКСОВ ПОД ЦВЕТ АКТИВНОЙ ТЕМЫ РАДИАНА
+   ========================================================= */
+
+/* 1. Нативные чекбоксы HTML */
+input[type="checkbox"] {
+  accent-color: var(--accent) !important;
+  cursor: pointer;
+}
+
+/* 2. Неотмеченный чекбокс (убираем ядовито-белый фон, ставим цвет карточки темы) */
+.cdx-checklist__item-checkbox,
+.cdx-checklist__item__checkbox,
+[class*="checklist"] [class*="checkbox"],
+.cdx-checklist__item::before {
+  background: var(--bg-card, #21262d) !important;
+  background-color: var(--bg-card, #21262d) !important;
+  border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.2)) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  cursor: pointer;
+}
+
+/* Наведение на неотмеченный чекбокс */
+.cdx-checklist__item:hover .cdx-checklist__item-checkbox,
+.cdx-checklist__item:hover [class*="checkbox"],
+.cdx-checklist__item:hover::before {
+  border-color: var(--accent) !important;
+}
+
+/* 3. Отмеченный чекбокс (строго в цвет активной темы Радиана) */
+.cdx-checklist__item--checked .cdx-checklist__item-checkbox,
+.cdx-checklist__item--checked .cdx-checklist__item__checkbox,
+.cdx-checklist__item--checked [class*="checkbox"],
+.cdx-checklist__item--checked::before {
+  background: var(--accent) !important;
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+/* 4. Сама белая галочка (псевдоэлемент ::after в Editor.js) */
+.cdx-checklist__item--checked .cdx-checklist__item-checkbox::after,
+.cdx-checklist__item--checked [class*="checkbox"]::after,
+.cdx-checklist__item--checked::after {
+  border-color: var(--accent-text, #ffffff) !important;
+}
+
+/* 5. Галочка, если отрисована через SVG */
+.cdx-checklist__item--checked [class*="checkbox"] svg,
+.cdx-checklist__item--checked [class*="checkbox"] svg path {
+  stroke: var(--accent-text, #ffffff) !important;
+  fill: transparent !important;
+}
+
+/* 6. Текст выполненного пункта (зачеркивание и приглушение цвета) */
+.cdx-checklist__item--checked .cdx-checklist__item-text,
+.cdx-checklist__item--checked [class*="text"] {
+  color: var(--text-muted, #8b949e) !important;
+  text-decoration: line-through !important;
+  opacity: 0.75 !important;
+}
