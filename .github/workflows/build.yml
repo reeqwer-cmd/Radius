@@ -39,7 +39,7 @@ jobs:
 
       - name: Build Exe
         run: |
-          pyinstaller --noconsole --onefile --name "Радиан" --icon "icon.ico" --add-data "frontend/dist;frontend/dist" Main.py
+          pyinstaller --noconsole --onefile --name "Радиан" --add-data "frontend/dist;frontend/dist" Main.py
 
       - name: Upload Exe to Release
         uses: softprops/action-gh-release@v2
