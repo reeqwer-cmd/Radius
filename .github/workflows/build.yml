@@ -1,0 +1,50 @@
+﻿name: Build and Release Radius
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pywebview PyQt6 PyQt6-WebEngine pyinstaller
+
+      - name: Build Exe
+        run: |
+          pyinstaller --noconsole --onefile --name "Радиан" --add-data "frontend/dist;frontend/dist" Main.py
+
+      - name: Upload Exe to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Радиан.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
