@@ -5,7 +5,7 @@ import urllib.request
 import tempfile
 import subprocess
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.2"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 GITHUB_TOKEN = "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"
 

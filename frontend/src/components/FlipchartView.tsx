@@ -4,7 +4,7 @@ import { PyWebViewAPI } from '../types/api';
 
 interface FlipchartViewProps {
   data: any;
-  api?: PyWebViewAPI;
+  api?: PyWebViewAPI | null;
   onOpenDocument?: (docId: number) => void;
   onChange: (data: any) => void;
 }
@@ -25,7 +25,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<any>(null);
 
-  // Свободное вытягивание стрелки
   const [dragArrow, setDragArrow] = useState<{
     fromId: string;
     currentX: number;
@@ -226,12 +225,11 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     }
   };
 
-  // Надежный парсер любых форматов Editor.js (чеклисты, списки, текст)
   const parseBlocksToHtml = (blocks: any[]): string => {
     if (!Array.isArray(blocks)) return '';
     return blocks.map(b => {
       if (!b || !b.data) return '';
-      // Чек-листы
+      // Чек-листы из EditorJS
       if (b.type === 'checklist' && Array.isArray(b.data.items)) {
         return b.data.items.map((it: any) => {
           const text = typeof it === 'string' ? it : (it.text || it.content || '');
@@ -246,7 +244,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
           return `<div style="margin:2px 0;">• ${text}</div>`;
         }).join('');
       }
-      // Обычный текст / заголовок
       return b.data.text ? `<div style="margin:2px 0;">${b.data.text}</div>` : '';
     }).filter(Boolean).join('');
   };
@@ -286,7 +283,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     } catch {}
   };
 
-  // Синхронизация карточки из БД
   const refreshCardFromDoc = async (el: any) => {
     if (!api) return;
     let targetDocId = el.docId;
@@ -357,7 +353,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     window.addEventListener('mouseup', onUp);
   };
 
-  // Прямая трассировка из центра в центр с отсечением на границах (НИКАКИХ ПЕТЕЛЬ)
   const getLinePoints = (el1: any, el2: any) => {
     const w1 = el1.width || 240;
     const h1 = el1.height || 170;
@@ -391,14 +386,23 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
     return { p1, p2 };
   };
 
+  // Мгновенное сохранение размера шрифта как заголовка, так и текста
   const changeFontSize = (el: any, delta: number, isTitle = false) => {
-    if (isTitle) {
-      el.titleFontSize = Math.min(36, Math.max(10, (el.titleFontSize || 14) + delta));
-    } else {
-      el.fontSize = Math.min(36, Math.max(10, (el.fontSize || 13) + delta));
-    }
-    setElements([...elements]);
-    triggerChange();
+    const updated = elements.map(item => {
+      if (item.id === el.id) {
+        if (isTitle) {
+          const newSize = Math.min(36, Math.max(10, (item.titleFontSize || 14) + delta));
+          return { ...item, titleFontSize: newSize };
+        } else {
+          const newSize = Math.min(36, Math.max(10, (item.fontSize || 13) + delta));
+          return { ...item, fontSize: newSize };
+        }
+      }
+      return item;
+    });
+
+    setElements(updated);
+    triggerChange(updated);
   };
 
   return (
@@ -438,7 +442,7 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
             transformOrigin: '0 0'
           }}
         >
-          {/* Слой стрелок */}
+          {/* Слой связей со стрелками */}
           <svg
             className="affine-connections-svg"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', zIndex: 1 }}
@@ -459,7 +463,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
 
               return (
                 <g key={i}>
-                  {/* Прозрачная линия клика для удаления стрелки */}
                   <path
                     d={pathD}
                     stroke="transparent"
@@ -530,7 +533,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
                     overflow: 'visible'
                   }}
                   onMouseDown={e => {
-                    // Если выбран инструмент "Стрелка", тянем линию прямо от клика по карточке
                     if (tool === 'connector') {
                       e.stopPropagation();
                       const coords = screenToWorld(e.clientX, e.clientY);
@@ -637,7 +639,6 @@ export const FlipchartView: React.FC<FlipchartViewProps> = ({ data, api, onOpenD
                     }}
                   />
 
-                  {/* Кнопка вытягивания стрелки */}
                   <div
                     className="conn-port port-right"
                     title="Потяните стрелку к любой другой карточке"

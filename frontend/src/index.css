@@ -1,3 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+/* --- ДИНАМИЧЕСКИЙ ШРИФТ ПРИЛОЖЕНИЯ --- */
+:root {
+    --app-font: 'Inter', 'Cactus Classical Serif', 'Merriweather', Georgia, serif;
+}
+
 /* --- ПАЛИТРЫ ТЕМ --- */
 :root[data-theme="emerald_green"] {
     --bg-body: #284139; --bg-sidebar: #1C2E28; --bg-card: #1E332D;
@@ -98,17 +105,68 @@
     --bg-canvas: #5c4e44;
 }
 
+/* --- НОВЫЕ ТЕМЫ ИЗ РЕФЕРЕНСОВ --- */
+
+/* 1. Burgundy & Olive */
+:root[data-theme="burgundy_olive"] {
+    --bg-body: #340A0E; --bg-sidebar: #111506; --bg-card: #570F1D;
+    --border-color: #6F2B34; --text-main: #F4EBE8; --text-muted: #81815D;
+    --accent: #81815D; --accent-hover: #9ca074; --accent-text: #111506;
+    --item-active: #323522; --item-hover: #232717; --popover-bg: #28080B;
+    --bg-canvas: #1B0507;
+}
+
+/* 2. Deep Plum & Lavender */
+:root[data-theme="plum_lavender"] {
+    --bg-body: #0B0E1A; --bg-sidebar: #00030E; --bg-card: #2C1B2F;
+    --border-color: #5E3A5C; --text-main: #F3E9EC; --text-muted: #B47A9A;
+    --accent: #B47A9A; --accent-hover: #cf92b5; --accent-text: #00030E;
+    --item-active: #3F2342; --item-hover: #2F1732; --popover-bg: #1B1220;
+    --bg-canvas: #05070D;
+}
+
+/* 3. Pastel Iris & Sky */
+:root[data-theme="pastel_iris"] {
+    --bg-body: #B8AEE3; --bg-sidebar: #838BCC; --bg-card: #FEFDF9;
+    --border-color: #A4C6E9; --text-main: #2A3158; --text-muted: #626C99;
+    --accent: #747EC7; --accent-hover: #5F6AB0; --accent-text: #FFFFFF;
+    --item-active: #98A1DE; --item-hover: #8D97D6; --popover-bg: #FFFFFF;
+    --bg-canvas: #7079B8;
+}
+
+/* 4. Sunset Mulberry & Peach */
+:root[data-theme="sunset_mulberry"] {
+    --bg-body: #562747; --bg-sidebar: #401B34; --bg-card: #8F3858;
+    --border-color: #AD4161; --text-main: #FFF4EE; --text-muted: #FF9F9A;
+    --accent: #FFC59E; --accent-hover: #FFD4B8; --accent-text: #562747;
+    --item-active: #6E2D50; --item-hover: #5A2241; --popover-bg: #4A1E3C;
+    --bg-canvas: #331329;
+}
+
+/* 5. Nordic Pastel Slate */
+:root[data-theme="nordic_pastel"] {
+    --bg-body: #657166; --bg-sidebar: #4F5A50; --bg-card: #FDE8D3;
+    --border-color: #CFD6C4; --text-main: #1F2722; --text-muted: #4A564D;
+    --accent: #99CDD8; --accent-hover: #7ABAC8; --accent-text: #1F2722;
+    --item-active: #5E6A5F; --item-hover: #576258; --popover-bg: #FFFFFF;
+    --bg-canvas: #3F4740;
+}
+
 * { box-sizing: border-box; }
 
 body {
     background-color: var(--bg-body);
     color: var(--text-main);
-    font-family: 'Cactus Classical Serif', 'Merriweather', Georgia, serif;
+    font-family: var(--app-font);
     margin: 0;
     display: flex;
     height: 100vh;
     overflow: hidden;
     transition: background-color 0.2s, color 0.2s;
+}
+
+input, button, textarea, select {
+    font-family: var(--app-font);
 }
 
 #welcome-screen {
@@ -459,10 +517,10 @@ h1, h2, h3 { color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    width: 720px;
+    width: 780px;
     max-width: 94vw;
-    height: 480px;
-    max-height: 85vh;
+    height: 520px;
+    max-height: 88vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -856,7 +914,7 @@ input:checked + .slider:before {
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
 
-/* ЗАМЕТКА: Акцентный тёплый цвет темы */
+/* ЗАМЕТКА */
 .affine-element.card-theme-note {
     background-color: var(--accent) !important;
     border: 1px solid rgba(0, 0, 0, 0.18);
@@ -874,7 +932,7 @@ input:checked + .slider:before {
     color: var(--accent-text, #111A19);
 }
 
-/* ДОКУМЕНТ: Фон карточки темы */
+/* ДОКУМЕНТ */
 .affine-element.card-theme-doc {
     background-color: var(--bg-card) !important;
     border: 1px solid var(--border-color);
@@ -916,10 +974,15 @@ input:checked + .slider:before {
     border: 1px solid var(--border-color, #38594E);
     border-radius: 4px;
     padding: 3px 8px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     line-height: 1;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
 }
 
 .sticky-format-toolbar .tb-btn:hover {
@@ -1014,7 +1077,8 @@ input:checked + .slider:before {
 
 /* Текстовые блоки заметок и документов */
 .sticky-text.contenteditable-text,
-.doc-link-text.contenteditable-text {
+.doc-link-text.contenteditable-text,
+.contenteditable-text {
     flex: 1;
     width: 100%;
     outline: none;
@@ -1054,24 +1118,27 @@ input:checked + .slider:before {
 
 /* Скроллбары */
 .sticky-text::-webkit-scrollbar,
-.doc-link-text::-webkit-scrollbar {
-    width: 6px;
+.doc-link-text::-webkit-scrollbar,
+.contenteditable-text::-webkit-scrollbar {
+    width: 4px;
 }
 
 .sticky-text::-webkit-scrollbar-track,
-.doc-link-text::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
+.doc-link-text::-webkit-scrollbar-track,
+.contenteditable-text::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .sticky-text::-webkit-scrollbar-thumb,
-.doc-link-text::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 3px;
+.doc-link-text::-webkit-scrollbar-thumb,
+.contenteditable-text::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
 }
 
 .sticky-text::-webkit-scrollbar-thumb:hover,
-.doc-link-text::-webkit-scrollbar-thumb:hover {
+.doc-link-text::-webkit-scrollbar-thumb:hover,
+.contenteditable-text::-webkit-scrollbar-thumb:hover {
     background: var(--accent);
 }
 
@@ -1117,16 +1184,3 @@ input:checked + .slider:before {
 .port-bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
 .port-left   { left: -6px; top: 50%; transform: translateY(-50%); }
 .port-right  { right: -6px; top: 50%; transform: translateY(-50%); }
-.contenteditable-text::-webkit-scrollbar {
-  width: 4px;
-}
-.contenteditable-text::-webkit-scrollbar-track {
-  background: transparent;
-}
-.contenteditable-text::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-}
-.contenteditable-text::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
-}

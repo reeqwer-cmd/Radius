@@ -1,41 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Folder, FolderOpen, FileText, Layout, GripVertical, Settings, 
-  ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation
+  ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation,
+  Check, Trash2
 } from 'lucide-react';
-import { WorkspaceTree, DocItem, DocType } from '../types/api';
+import { WorkspaceTree, DocItem, DocType, WorkspaceItem, FolderItem, TreeOrderItem } from '../types/api';
 
 interface SidebarProps {
   tree: WorkspaceTree;
   workspaceName: string;
+  allWorkspaces: WorkspaceItem[];
+  currentWsId: number | null;
   currentDocId: number | null;
   onSelectDoc: (id: number) => void;
+  onSelectWorkspace: (wsId: number) => Promise<void>;
+  onCreateWorkspacePrompt: () => void;
+  onDeleteWorkspacePrompt: (wsId: number) => void;
   onCreateFolder: (name: string) => Promise<void>;
   onCreateDoc: (title: string, folderId: number | null, type: DocType) => Promise<void>;
   onRenameWorkspace: (name: string) => Promise<void>;
   onRenameFolder: (id: number, name: string) => Promise<void>;
   onDeleteFolder: (id: number) => Promise<void>;
   onDeleteDoc: (id: number) => Promise<void>;
-  onMoveDocToFolder: (docId: number, folderId: number | null) => Promise<void>;
-  onReorderFolders: (folderIds: number[]) => Promise<void>;
+  onReorderTree: (items: TreeOrderItem[]) => Promise<void>;
   onExportWorkspace: () => void;
   onImportWorkspace: () => void;
   onOpenSettings: () => void;
 }
 
+type RootItem = 
+  | { kind: 'folder'; item: FolderItem }
+  | { kind: 'doc'; item: DocItem };
+
 export const Sidebar: React.FC<SidebarProps> = ({
   tree,
   workspaceName,
+  allWorkspaces,
+  currentWsId,
   currentDocId,
   onSelectDoc,
+  onSelectWorkspace,
+  onCreateWorkspacePrompt,
+  onDeleteWorkspacePrompt,
   onCreateFolder,
   onCreateDoc,
   onRenameWorkspace,
   onRenameFolder,
   onDeleteFolder,
   onDeleteDoc,
-  onMoveDocToFolder,
-  onReorderFolders,
+  onReorderTree,
   onExportWorkspace,
   onImportWorkspace,
   onOpenSettings
@@ -45,11 +58,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isEditingWs, setIsEditingWs] = useState(false);
   const [wsNameInput, setWsNameInput] = useState(workspaceName);
   
+  const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
-  const [draggedFolderId, setDraggedFolderId] = useState<number | null>(null);
 
-  const wsMenuRef = useRef<HTMLDivElement>(null);
+  // Drag-and-drop состояние
+  const [draggedEntity, setDraggedEntity] = useState<
+    { type: 'folder'; id: number } | { type: 'doc'; id: number; fromFolderId: number | null } | null
+  >(null);
+
+  const wsCardRef = useRef<HTMLDivElement>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const [inlineInput, setInlineInput] = useState<{
@@ -61,7 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (wsMenuRef.current && !wsMenuRef.current.contains(e.target as Node)) {
+      if (wsCardRef.current && !wsCardRef.current.contains(e.target as Node)) {
+        setWsDropdownOpen(false);
         setWsMenuOpen(false);
       }
       if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
@@ -99,36 +118,125 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setInlineInput({ visible: false, type: 'document', folderId: null, value: '' });
   };
 
-  const handleDocDragStart = (e: React.DragEvent, doc: DocItem) => {
-    e.dataTransfer.setData('application/x-radian-doc', JSON.stringify(doc));
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id: doc.id, title: doc.title, type: doc.type }));
-    e.dataTransfer.effectAllowed = 'copyMove';
-  };
+  // --- ЕДИНЫЙ СПИСОК ВЕРХНЕГО УРОВНЯ (ПАПКИ И ДОКУМЕНТЫ ВМЕСТЕ) ---
+  const rootItems: RootItem[] = [
+    ...tree.folders.map(f => ({ kind: 'folder' as const, item: f })),
+    ...tree.documents.filter(d => d.folder_id === null).map(d => ({ kind: 'doc' as const, item: d }))
+  ].sort((a, b) => (a.item.sort_order ?? 0) - (b.item.sort_order ?? 0));
 
-  const handleFolderDrop = (e: React.DragEvent, targetFolderId: number | null) => {
+  // Перемещение элемента в корневом списке (папка на документ, документ на папку, документ на документ)
+  const handleDropOnRootItem = (e: React.DragEvent, targetItem: RootItem) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (draggedFolderId !== null && targetFolderId !== null && draggedFolderId !== targetFolderId) {
-      const folderIds = tree.folders.map(f => f.id);
-      const fromIdx = folderIds.indexOf(draggedFolderId);
-      const toIdx = folderIds.indexOf(targetFolderId);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        folderIds.splice(fromIdx, 1);
-        folderIds.splice(toIdx, 0, draggedFolderId);
-        onReorderFolders(folderIds);
+    if (!draggedEntity) return;
+
+    // Собираем текущий список верхнего уровня без перетаскиваемого элемента
+    const currentRoots = [...rootItems].filter(r => {
+      if (draggedEntity.type === 'folder') {
+        return !(r.kind === 'folder' && r.item.id === draggedEntity.id);
+      } else {
+        return !(r.kind === 'doc' && r.item.id === draggedEntity.id);
       }
-      setDraggedFolderId(null);
+    });
+
+    const targetIdx = currentRoots.findIndex(r => {
+      if (targetItem.kind === 'folder') {
+        return r.kind === 'folder' && r.item.id === targetItem.item.id;
+      }
+      return r.kind === 'doc' && r.item.id === targetItem.item.id;
+    });
+
+    const insertAt = targetIdx >= 0 ? targetIdx : currentRoots.length;
+
+    let inserted: RootItem;
+    if (draggedEntity.type === 'folder') {
+      const f = tree.folders.find(x => x.id === draggedEntity.id)!;
+      inserted = { kind: 'folder', item: f };
+    } else {
+      const d = tree.documents.find(x => x.id === draggedEntity.id)!;
+      inserted = { kind: 'doc', item: { ...d, folder_id: null } };
+    }
+
+    currentRoots.splice(insertAt, 0, inserted);
+
+    // Пересчитываем сквозной sort_order для всех элементов корня
+    const updates: TreeOrderItem[] = currentRoots.map((r, index) => ({
+      type: r.kind,
+      id: r.item.id,
+      folder_id: r.kind === 'doc' ? null : undefined,
+      sort_order: index
+    }));
+
+    onReorderTree(updates);
+    setDraggedEntity(null);
+  };
+
+  // Перемещение документа внутри папки
+  const handleDropOnFolderDoc = (e: React.DragEvent, targetDoc: DocItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedEntity || draggedEntity.type !== 'doc') return;
+    if (draggedEntity.id === targetDoc.id) return;
+
+    const folderId = targetDoc.folder_id;
+    const siblings = tree.documents
+      .filter(d => d.folder_id === folderId && d.id !== draggedEntity.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    const targetIdx = siblings.findIndex(d => d.id === targetDoc.id);
+    const insertAt = targetIdx >= 0 ? targetIdx : siblings.length;
+
+    const draggedDocObj = tree.documents.find(d => d.id === draggedEntity.id)!;
+    siblings.splice(insertAt, 0, { ...draggedDocObj, folder_id: folderId });
+
+    const updates: TreeOrderItem[] = siblings.map((d, index) => ({
+      type: 'doc',
+      id: d.id,
+      folder_id: folderId,
+      sort_order: index
+    }));
+
+    onReorderTree(updates);
+    setDraggedEntity(null);
+  };
+
+  // Бросок документа внутрь папки (в шапку папки или в пустое место)
+  const handleDropIntoFolder = (e: React.DragEvent, targetFolderId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedEntity) return;
+
+    // Если тащим документ — закидываем его в папку
+    if (draggedEntity.type === 'doc') {
+      const siblings = tree.documents
+        .filter(d => d.folder_id === targetFolderId && d.id !== draggedEntity.id)
+        .sort((a, b) => a.sort_order - b.sort_order);
+
+      const draggedDocObj = tree.documents.find(d => d.id === draggedEntity.id)!;
+      siblings.push({ ...draggedDocObj, folder_id: targetFolderId });
+
+      const updates: TreeOrderItem[] = siblings.map((d, index) => ({
+        type: 'doc',
+        id: d.id,
+        folder_id: targetFolderId,
+        sort_order: index
+      }));
+
+      onReorderTree(updates);
+      setDraggedEntity(null);
       return;
     }
 
-    try {
-      const raw = e.dataTransfer.getData('application/x-radian-doc') || e.dataTransfer.getData('text/plain');
-      if (raw) {
-        const item = JSON.parse(raw);
-        if (item.id) onMoveDocToFolder(item.id, targetFolderId);
+    // Если тащим папку на другую папку — меняем порядок в корневом списке
+    if (draggedEntity.type === 'folder' && draggedEntity.id !== targetFolderId) {
+      const targetFolder = tree.folders.find(f => f.id === targetFolderId);
+      if (targetFolder) {
+        handleDropOnRootItem(e, { kind: 'folder', item: targetFolder });
       }
-    } catch {}
+    }
   };
 
   return (
@@ -145,21 +253,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="brand-title">РАДИАН</span>
         </div>
 
-        {/* Блок текущего рабочего пространства */}
+        {/* Блок выбора пространства */}
         <div 
           className="workspace-card"
-          ref={wsMenuRef}
+          ref={wsCardRef}
           style={{
             position: 'relative',
-            background: 'rgba(255, 255, 255, 0.04)',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: 8,
-            padding: '8px 12px',
+            padding: '8px 10px',
             marginBottom: 14,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8
+            gap: 6
           }}
         >
           {isEditingWs ? (
@@ -174,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 border: 'none',
                 borderBottom: '1px solid var(--accent)',
                 color: 'var(--text-main)',
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 600,
                 outline: 'none',
                 padding: '2px 0'
@@ -188,16 +296,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
           ) : (
             <div 
-              style={{ flex: 1, overflow: 'hidden', cursor: 'pointer' }}
-              onClick={() => { setWsNameInput(workspaceName); setIsEditingWs(true); }}
-              title="Нажмите, чтобы переименовать"
+              style={{ flex: 1, overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => setWsDropdownOpen(!wsDropdownOpen)}
+              title="Нажмите, чтобы переключить пространство"
             >
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: 2 }}>
-                Пространство
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 1 }}>
+                  Пространство
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {workspaceName}
+                </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {workspaceName}
-              </div>
+              <ChevronDown size={14} style={{ opacity: 0.6, transform: wsDropdownOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
             </div>
           )}
 
@@ -205,8 +316,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'var(--text-main)',
-              opacity: 0.7,
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: 4,
               display: 'flex',
@@ -214,11 +324,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
               borderRadius: 4
             }}
             onClick={() => setWsMenuOpen(!wsMenuOpen)}
-            title="Опции пространства"
+            title="Действия с пространством"
           >
-            <MoreVertical size={16} />
+            <MoreVertical size={15} />
           </button>
 
+          {/* Выпадающий список пространств */}
+          {wsDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: 6,
+                background: 'var(--bg-sidebar)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                maxHeight: 240,
+                overflowY: 'auto',
+                zIndex: 110,
+                padding: '4px 0'
+              }}
+            >
+              <div style={{ fontSize: 10, padding: '4px 10px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Ваши пространства:
+              </div>
+
+              {allWorkspaces.map(ws => (
+                <div
+                  key={ws.id}
+                  style={{
+                    padding: '7px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    background: ws.id === currentWsId ? 'var(--item-active)' : 'transparent',
+                    fontSize: 12
+                  }}
+                  onClick={() => {
+                    setWsDropdownOpen(false);
+                    onSelectWorkspace(ws.id);
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontWeight: ws.id === currentWsId ? 700 : 400 }}>
+                    {ws.name}
+                  </span>
+                  {ws.id === currentWsId && <Check size={13} style={{ color: 'var(--accent)', marginLeft: 6 }} />}
+                  {allWorkspaces.length > 1 && (
+                    <button
+                      className="action-btn"
+                      style={{ marginLeft: 6, opacity: 0.5 }}
+                      title="Удалить пространство"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteWorkspacePrompt(ws.id);
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              <div style={{ borderTop: '1px solid var(--border-color)', margin: '4px 0' }}></div>
+              <button
+                style={{
+                  width: '100%',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent)',
+                  padding: '7px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setWsDropdownOpen(false);
+                  onCreateWorkspacePrompt();
+                }}
+              >
+                <Plus size={13} />
+                <span>Создать новое...</span>
+              </button>
+            </div>
+          )}
+
+          {/* Меню экспорта/импорта/переименования */}
           {wsMenuOpen && (
             <div
               style={{
@@ -229,9 +426,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 background: 'var(--bg-sidebar)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                 minWidth: 190,
-                zIndex: 100,
+                zIndex: 110,
                 padding: '4px 0',
                 display: 'flex',
                 flexDirection: 'column'
@@ -306,7 +503,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Панель «Документы» с аккуратным плюсиком */}
+        {/* Заголовок документов с кнопкой добавления */}
         <div
           ref={createMenuRef}
           style={{
@@ -314,12 +511,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '4px 6px 8px 6px',
+            padding: '4px 4px 8px 4px',
             borderBottom: '1px solid var(--border-color)',
             marginBottom: 8
           }}
         >
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             Документы
           </span>
 
@@ -329,8 +526,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               height: 22,
               borderRadius: 4,
               border: '1px solid var(--border-color)',
-              background: 'rgba(255,255,255,0.06)',
-              color: 'var(--text-main)',
+              background: 'transparent',
+              color: 'var(--text-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -428,119 +625,143 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Дерево папок и документов */}
-        <div id="tree-container">
-          {tree.folders.map(folder => {
-            const isFoldCollapsed = collapsedFolders.has(folder.id);
-            const folderDocs = tree.documents.filter(d => d.folder_id === folder.id);
+        {/* ЕДИНЫЙ ОБЩИЙ СПИСОК ПАПОК И КОРНЕВЫХ ДОКУМЕНТОВ */}
+        <div 
+          id="tree-container"
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            // Если бросили в пустое место контейнера в самом низу
+            if (rootItems.length > 0) {
+              handleDropOnRootItem(e, rootItems[rootItems.length - 1]);
+            }
+          }}
+        >
+          {rootItems.map(rootNode => {
+            if (rootNode.kind === 'folder') {
+              const folder = rootNode.item;
+              const isFoldCollapsed = collapsedFolders.has(folder.id);
+              const folderDocs = tree.documents
+                .filter(d => d.folder_id === folder.id)
+                .sort((a, b) => a.sort_order - b.sort_order);
 
-            return (
-              <div
-                key={folder.id}
-                className="folder-block"
-                draggable
-                onDragStart={() => setDraggedFolderId(folder.id)}
-                onDragEnd={() => setDraggedFolderId(null)}
-              >
+              return (
                 <div
-                  className="folder-header"
-                  onClick={() => toggleFolderCollapse(folder.id)}
+                  key={`folder_${folder.id}`}
+                  className="folder-block"
+                  draggable
+                  onDragStart={() => setDraggedEntity({ type: 'folder', id: folder.id })}
                   onDragOver={e => e.preventDefault()}
-                  onDrop={e => handleFolderDrop(e, folder.id)}
+                  onDrop={e => handleDropOnRootItem(e, rootNode)}
                 >
-                  <div className="folder-title-wrap">
-                    <span className="doc-drag-handle" style={{ marginRight: 2 }} title="Потяните для изменения порядка"><GripVertical size={11} /></span>
-                    <span className="folder-toggle-icon">{isFoldCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}</span>
-                    <span className="folder-icon-svg">{isFoldCollapsed ? <Folder size={15} /> : <FolderOpen size={15} />}</span>
-                    <span className="folder-name">{folder.name}</span>
-                  </div>
-                  <div className="folder-actions" onClick={e => e.stopPropagation()}>
-                    <button 
-                      className="action-btn" 
-                      title="Добавить документ" 
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => setInlineInput({ visible: true, type: 'document', folderId: folder.id, value: '' })}
-                    >
-                      <Plus size={13} />
-                    </button>
-                    <button 
-                      className="action-btn" 
-                      title="Добавить флипчарт" 
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => setInlineInput({ visible: true, type: 'flipchart', folderId: folder.id, value: '' })}
-                    >
-                      <Presentation size={13} />
-                    </button>
-                    <button 
-                      className="action-btn" 
-                      title="Переименовать" 
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        const newN = prompt('Название папки:', folder.name);
-                        if (newN && newN.trim()) onRenameFolder(folder.id, newN.trim());
-                      }}
-                    >
-                      <Edit2 size={11} />
-                    </button>
-                    <button 
-                      className="action-btn" 
-                      title="Удалить" 
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        if (confirm('Удалить папку? Документы переместятся в корень.')) onDeleteFolder(folder.id);
-                      }}
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                </div>
+                  <div
+                    className="folder-header"
+                    onClick={() => toggleFolderCollapse(folder.id)}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => handleDropIntoFolder(e, folder.id)}
+                  >
+                    <div className="folder-title-wrap">
+                      <span className="doc-drag-handle" title="Потяните для перемещения"><GripVertical size={11} /></span>
+                      <span className="folder-toggle-icon">{isFoldCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}</span>
+                      <span className="folder-icon-svg">{isFoldCollapsed ? <Folder size={15} /> : <FolderOpen size={15} />}</span>
+                      <span className="folder-name">{folder.name}</span>
+                    </div>
 
-                {!isFoldCollapsed && (
-                  <ul className="folder-docs">
-                    {folderDocs.map(doc => (
-                      <li
-                        key={doc.id}
-                        className={`doc-item ${doc.id === currentDocId ? 'active' : ''} ${doc.type === 'flipchart' ? 'doc-item-flipchart' : ''}`}
-                        draggable
-                        onDragStart={e => handleDocDragStart(e, doc)}
-                        onClick={() => onSelectDoc(doc.id)}
+                    <div className="folder-actions" onClick={e => e.stopPropagation()}>
+                      <button 
+                        className="action-btn" 
+                        title="Добавить документ" 
+                        onClick={() => setInlineInput({ visible: true, type: 'document', folderId: folder.id, value: '' })}
                       >
-                        <span className="doc-drag-handle"><GripVertical size={12} /></span>
-                        <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
-                        <span className="doc-name">{doc.title}</span>
-                        <div className="doc-actions" onClick={e => e.stopPropagation()}>
-                          <button className="action-btn" onClick={() => { if (confirm('Удалить документ?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
+                        <Plus size={13} />
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="Добавить флипчарт" 
+                        onClick={() => setInlineInput({ visible: true, type: 'flipchart', folderId: folder.id, value: '' })}
+                      >
+                        <Presentation size={13} />
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="Переименовать" 
+                        onClick={() => {
+                          const newN = prompt('Название папки:', folder.name);
+                          if (newN && newN.trim()) onRenameFolder(folder.id, newN.trim());
+                        }}
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="Удалить" 
+                        onClick={() => {
+                          if (confirm('Удалить папку? Документы переместятся в корень.')) onDeleteFolder(folder.id);
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
 
-          <ul
-            className="doc-list-root"
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => handleFolderDrop(e, null)}
-          >
-            {tree.documents.filter(d => !d.folder_id).map(doc => (
-              <li
-                key={doc.id}
-                className={`doc-item ${doc.id === currentDocId ? 'active' : ''} ${doc.type === 'flipchart' ? 'doc-item-flipchart' : ''}`}
-                draggable
-                onDragStart={e => handleDocDragStart(e, doc)}
-                onClick={() => onSelectDoc(doc.id)}
-              >
-                <span className="doc-drag-handle"><GripVertical size={12} /></span>
-                <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
-                <span className="doc-name">{doc.title}</span>
-                <div className="doc-actions" onClick={e => e.stopPropagation()}>
-                  <button className="action-btn" onClick={() => { if (confirm('Удалить элемент?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
+                  {!isFoldCollapsed && (
+                    <ul 
+                      className="folder-docs"
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => handleDropIntoFolder(e, folder.id)}
+                    >
+                      {folderDocs.map(doc => (
+                        <li
+                          key={`doc_${doc.id}`}
+                          className={`doc-item ${doc.id === currentDocId ? 'active' : ''}`}
+                          draggable
+                          onDragStart={e => {
+                            e.stopPropagation();
+                            setDraggedEntity({ type: 'doc', id: doc.id, fromFolderId: folder.id });
+                            e.dataTransfer.setData('application/x-radian-doc', JSON.stringify({ id: doc.id, title: doc.title }));
+                          }}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={e => handleDropOnFolderDoc(e, doc)}
+                          onClick={() => onSelectDoc(doc.id)}
+                        >
+                          <span className="doc-drag-handle"><GripVertical size={12} /></span>
+                          <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
+                          <span className="doc-name">{doc.title}</span>
+                          <div className="doc-actions" onClick={e => e.stopPropagation()}>
+                            <button className="action-btn" onClick={() => { if (confirm('Удалить документ?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            } else {
+              // Корневой документ верхнего уровня (может быть ВЫШЕ, МЕЖДУ или НИЖЕ любой папки!)
+              const doc = rootNode.item;
+              return (
+                <div
+                  key={`root_doc_${doc.id}`}
+                  className={`doc-item ${doc.id === currentDocId ? 'active' : ''}`}
+                  draggable
+                  onDragStart={e => {
+                    setDraggedEntity({ type: 'doc', id: doc.id, fromFolderId: null });
+                    e.dataTransfer.setData('application/x-radian-doc', JSON.stringify({ id: doc.id, title: doc.title }));
+                  }}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => handleDropOnRootItem(e, rootNode)}
+                  onClick={() => onSelectDoc(doc.id)}
+                  style={{ marginBottom: 2 }}
+                >
+                  <span className="doc-drag-handle"><GripVertical size={12} /></span>
+                  <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
+                  <span className="doc-name">{doc.title}</span>
+                  <div className="doc-actions" onClick={e => e.stopPropagation()}>
+                    <button className="action-btn" onClick={() => { if (confirm('Удалить элемент?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
+                  </div>
+                </div>
+              );
+            }
+          })}
         </div>
 
         {inlineInput.visible && (

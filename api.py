@@ -1,8 +1,9 @@
 import json
 import os
+import webview
 from datetime import datetime
 from database import get_db_connection
-import webview
+import updater
 
 
 class Api:
@@ -26,7 +27,26 @@ class Api:
         finally:
             conn.close()
 
-    # --- УПРАВЛЕНИЕ МОДУЛЯМИ ---
+    def get_font(self):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'app_font'")
+            row = cursor.fetchone()
+            return row[0] if row else "Inter"
+        finally:
+            conn.close()
+
+    def set_font(self, font_name):
+        conn = get_db_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('app_font', ?)", (font_name,))
+            return True
+        finally:
+            conn.close()
+
     def get_modules_state(self):
         conn = get_db_connection()
         try:
@@ -50,15 +70,33 @@ class Api:
         finally:
             conn.close()
 
+    # --- АВТООБНОВЛЕНИЕ ---
+    def check_update(self):
+        return updater.check_for_updates()
+
+    def start_auto_update(self, download_url):
+        return updater.download_and_install_update(download_url)
+
     # --- РАБОЧИЕ ПРОСТРАНСТВА ---
     def get_initial_state(self):
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, name FROM workspaces ORDER BY id ASC LIMIT 1")
-            workspace = cursor.fetchone()
+            cursor.execute("SELECT value FROM settings WHERE key = 'last_workspace_id'")
+            last_row = cursor.fetchone()
+            
+            workspace = None
+            if last_row and last_row[0]:
+                cursor.execute("SELECT id, name FROM workspaces WHERE id = ?", (last_row[0],))
+                workspace = cursor.fetchone()
+
+            if not workspace:
+                cursor.execute("SELECT id, name FROM workspaces ORDER BY id ASC LIMIT 1")
+                workspace = cursor.fetchone()
+
             if not workspace:
                 return {"has_workspace": False}
+
             return {
                 "has_workspace": True,
                 "workspace_id": workspace[0],
@@ -67,8 +105,27 @@ class Api:
         finally:
             conn.close()
 
+    def set_active_workspace(self, ws_id):
+        conn = get_db_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_workspace_id', ?)", (str(ws_id),))
+            return True
+        finally:
+            conn.close()
+
+    def get_all_workspaces(self):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name FROM workspaces ORDER BY id ASC")
+            return [{"id": r[0], "name": r[1]} for r in cursor.fetchall()]
+        finally:
+            conn.close()
+
     def create_workspace(self, name):
-        name = name.strip() or "Основное пространство"
+        name = name.strip() or "Новое пространство"
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         conn = get_db_connection()
@@ -91,6 +148,8 @@ class Api:
                     (ws_id, "Главная страница", json.dumps(default_content, ensure_ascii=False), now)
                 )
                 doc_id = cursor.lastrowid
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_workspace_id', ?)", (str(ws_id),))
+
             return {"workspace_id": ws_id, "workspace_name": name, "initial_doc_id": doc_id}
         finally:
             conn.close()
@@ -106,7 +165,23 @@ class Api:
         finally:
             conn.close()
 
-    # --- ЭКСПОРТ И ИМПОРТ РАБОЧИХ ПРОСТРАНСТВ НА ДИСК ---
+    def delete_workspace(self, ws_id):
+        conn = get_db_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM documents WHERE workspace_id = ?", (ws_id,))
+                cursor.execute("DELETE FROM folders WHERE workspace_id = ?", (ws_id,))
+                cursor.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
+                
+                cursor.execute("SELECT value FROM settings WHERE key = 'last_workspace_id'")
+                row = cursor.fetchone()
+                if row and row[0] == str(ws_id):
+                    cursor.execute("DELETE FROM settings WHERE key = 'last_workspace_id'")
+            return True
+        finally:
+            conn.close()
+
     def export_workspace(self, ws_id):
         conn = get_db_connection()
         try:
@@ -195,6 +270,7 @@ class Api:
                     cursor = conn.cursor()
                     cursor.execute("INSERT INTO workspaces (name, created_at) VALUES (?, ?)", (ws_title, now))
                     new_ws_id = cursor.lastrowid
+                    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_workspace_id', ?)", (str(new_ws_id),))
 
                     old_to_new_folder_id = {}
                     for f in data.get("folders", []):
@@ -238,7 +314,7 @@ class Api:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    # --- ПАПКИ И ДОКУМЕНТЫ / ФЛИПЧАРТЫ ---
+    # --- ДЕРЕВО ПАПОК И ДОКУМЕНТОВ ---
     def get_workspace_tree(self, ws_id):
         conn = get_db_connection()
         try:
@@ -276,7 +352,14 @@ class Api:
         try:
             with conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM folders WHERE workspace_id = ?", (ws_id,))
+                cursor.execute(
+                    "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM ("
+                    "  SELECT sort_order FROM folders WHERE workspace_id = ?"
+                    "  UNION ALL"
+                    "  SELECT sort_order FROM documents WHERE workspace_id = ? AND folder_id IS NULL"
+                    ")",
+                    (ws_id, ws_id)
+                )
                 next_order = cursor.fetchone()[0]
                 cursor.execute(
                     "INSERT INTO folders (workspace_id, name, sort_order, created_at) VALUES (?, ?, ?, ?)",
@@ -309,20 +392,6 @@ class Api:
         finally:
             conn.close()
 
-    def update_folders_order(self, ws_id, ordered_folder_ids):
-        conn = get_db_connection()
-        try:
-            with conn:
-                cursor = conn.cursor()
-                for index, folder_id in enumerate(ordered_folder_ids):
-                    cursor.execute(
-                        "UPDATE folders SET sort_order = ? WHERE id = ? AND workspace_id = ?",
-                        (index, folder_id, ws_id)
-                    )
-            return True
-        finally:
-            conn.close()
-
     def create_document(self, ws_id, title, folder_id=None, doc_type="document"):
         title = title.strip() or ("Новый флипчарт" if doc_type == "flipchart" else "Новый документ")
         
@@ -347,11 +416,20 @@ class Api:
         try:
             with conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM documents "
-                    "WHERE workspace_id = ? AND (folder_id IS ? OR folder_id = ?)",
-                    (ws_id, folder_id, folder_id)
-                )
+                if folder_id is None:
+                    cursor.execute(
+                        "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM ("
+                        "  SELECT sort_order FROM folders WHERE workspace_id = ?"
+                        "  UNION ALL"
+                        "  SELECT sort_order FROM documents WHERE workspace_id = ? AND folder_id IS NULL"
+                        ")",
+                        (ws_id, ws_id)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM documents WHERE workspace_id = ? AND folder_id = ?",
+                        (ws_id, folder_id)
+                    )
                 next_order = cursor.fetchone()[0]
                 
                 cursor.execute(
@@ -407,26 +485,30 @@ class Api:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def move_document_to_folder(self, doc_id, folder_id):
+    # Универсальное перемещение элементов (папок и документов в любом порядке)
+    def reorder_tree_items(self, ws_id, items):
+        """
+        items: список объектов [{'type': 'folder'|'doc', 'id': 1, 'folder_id': None|int, 'sort_order': 0}, ...]
+        """
         conn = get_db_connection()
         try:
             with conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE documents SET folder_id = ? WHERE id = ?", (folder_id, doc_id))
-            return True
-        finally:
-            conn.close()
+                for item in items:
+                    item_type = item.get("type")
+                    item_id = item.get("id")
+                    order = item.get("sort_order", 0)
 
-    def update_documents_order(self, ws_id, ordered_items):
-        conn = get_db_connection()
-        try:
-            with conn:
-                cursor = conn.cursor()
-                for index, item in enumerate(ordered_items):
-                    cursor.execute(
-                        "UPDATE documents SET sort_order = ?, folder_id = ? WHERE id = ? AND workspace_id = ?",
-                        (index, item.get("folder_id"), item.get("id"), ws_id)
-                    )
+                    if item_type == "folder":
+                        cursor.execute(
+                            "UPDATE folders SET sort_order = ? WHERE id = ? AND workspace_id = ?",
+                            (order, item_id, ws_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "UPDATE documents SET sort_order = ?, folder_id = ? WHERE id = ? AND workspace_id = ?",
+                            (order, item.get("folder_id"), item_id, ws_id)
+                        )
             return True
         finally:
             conn.close()
