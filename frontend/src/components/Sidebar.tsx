@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { Folder, FolderOpen, FileText, Layout, GripVertical, Settings, ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Folder, FolderOpen, FileText, Layout, GripVertical, Settings, 
+  ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation
+} from 'lucide-react';
 import { WorkspaceTree, DocItem, DocType } from '../types/api';
 
 interface SidebarProps {
@@ -15,6 +18,8 @@ interface SidebarProps {
   onDeleteDoc: (id: number) => Promise<void>;
   onMoveDocToFolder: (docId: number, folderId: number | null) => Promise<void>;
   onReorderFolders: (folderIds: number[]) => Promise<void>;
+  onExportWorkspace: () => void;
+  onImportWorkspace: () => void;
   onOpenSettings: () => void;
 }
 
@@ -31,14 +36,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteDoc,
   onMoveDocToFolder,
   onReorderFolders,
+  onExportWorkspace,
+  onImportWorkspace,
   onOpenSettings
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<number>>(new Set());
   const [isEditingWs, setIsEditingWs] = useState(false);
   const [wsNameInput, setWsNameInput] = useState(workspaceName);
+  
+  const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [draggedFolderId, setDraggedFolderId] = useState<number | null>(null);
+
+  const wsMenuRef = useRef<HTMLDivElement>(null);
+  const createMenuRef = useRef<HTMLDivElement>(null);
 
   const [inlineInput, setInlineInput] = useState<{
     visible: boolean;
@@ -46,6 +58,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     folderId: number | null;
     value: string;
   }>({ visible: false, type: 'document', folderId: null, value: '' });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wsMenuRef.current && !wsMenuRef.current.contains(e.target as Node)) {
+        setWsMenuOpen(false);
+      }
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+        setCreateMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleFolderCollapse = (folderId: number) => {
     setCollapsedFolders(prev => {
@@ -84,7 +109,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // Если перетаскивали папку для смены порядка
     if (draggedFolderId !== null && targetFolderId !== null && draggedFolderId !== targetFolderId) {
       const folderIds = tree.folders.map(f => f.id);
       const fromIdx = folderIds.indexOf(draggedFolderId);
@@ -98,7 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return;
     }
 
-    // Если перетаскивали документ
     try {
       const raw = e.dataTransfer.getData('application/x-radian-doc') || e.dataTransfer.getData('text/plain');
       if (raw) {
@@ -119,16 +142,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div id="sidebar" className={collapsed ? 'collapsed' : ''}>
         <div className="brand-header">
-          <span className="brand-title">Радиан</span>
+          <span className="brand-title">РАДИАН</span>
         </div>
 
-        <div className="workspace-block">
+        {/* Блок текущего рабочего пространства */}
+        <div 
+          className="workspace-card"
+          ref={wsMenuRef}
+          style={{
+            position: 'relative',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8
+          }}
+        >
           {isEditingWs ? (
             <input
               type="text"
               className="workspace-edit-input"
               value={wsNameInput}
               autoFocus
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--accent)',
+                color: 'var(--text-main)',
+                fontSize: 14,
+                fontWeight: 600,
+                outline: 'none',
+                padding: '2px 0'
+              }}
               onChange={e => setWsNameInput(e.target.value)}
               onBlur={handleFinishRenameWs}
               onKeyDown={e => {
@@ -137,27 +187,248 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
           ) : (
-            <div className="workspace-name-wrap" onClick={() => { setWsNameInput(workspaceName); setIsEditingWs(true); }}>
-              <span className="workspace-name">{workspaceName}</span>
-              <span className="edit-icon">✎</span>
+            <div 
+              style={{ flex: 1, overflow: 'hidden', cursor: 'pointer' }}
+              onClick={() => { setWsNameInput(workspaceName); setIsEditingWs(true); }}
+              title="Нажмите, чтобы переименовать"
+            >
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: 2 }}>
+                Пространство
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {workspaceName}
+              </div>
+            </div>
+          )}
+
+          <button
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-main)',
+              opacity: 0.7,
+              cursor: 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 4
+            }}
+            onClick={() => setWsMenuOpen(!wsMenuOpen)}
+            title="Опции пространства"
+          >
+            <MoreVertical size={16} />
+          </button>
+
+          {wsMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 6,
+                background: 'var(--bg-sidebar)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                minWidth: 190,
+                zIndex: 100,
+                padding: '4px 0',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setWsMenuOpen(false);
+                  setWsNameInput(workspaceName);
+                  setIsEditingWs(true);
+                }}
+              >
+                <Edit2 size={13} />
+                <span>Переименовать</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setWsMenuOpen(false);
+                  onExportWorkspace();
+                }}
+              >
+                <Download size={13} />
+                <span>Сохранить на диск (.radian)</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  borderTop: '1px solid var(--border-color)'
+                }}
+                onClick={() => {
+                  setWsMenuOpen(false);
+                  onImportWorkspace();
+                }}
+              >
+                <Upload size={13} />
+                <span>Загрузить с диска</span>
+              </button>
             </div>
           )}
         </div>
 
-        <div className="create-menu-wrapper">
-          <button className="btn-create-main" onClick={() => setCreateMenuOpen(!createMenuOpen)}>
-            <span>Создать</span>
-            <span style={{ fontSize: '8px', opacity: 0.7 }}>▼</span>
+        {/* Панель «Документы» с аккуратным плюсиком */}
+        <div
+          ref={createMenuRef}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '4px 6px 8px 6px',
+            borderBottom: '1px solid var(--border-color)',
+            marginBottom: 8
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.6 }}>
+            Документы
+          </span>
+
+          <button
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 4,
+              border: '1px solid var(--border-color)',
+              background: 'rgba(255,255,255,0.06)',
+              color: 'var(--text-main)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => setCreateMenuOpen(!createMenuOpen)}
+            title="Создать элемент"
+          >
+            <Plus size={14} />
           </button>
+
           {createMenuOpen && (
-            <ul className="create-dropdown open">
-              <li className="create-dropdown-item" onClick={() => { setCreateMenuOpen(false); setInlineInput({ visible: true, type: 'document', folderId: null, value: '' }); }}>Документ</li>
-              <li className="create-dropdown-item" onClick={() => { setCreateMenuOpen(false); setInlineInput({ visible: true, type: 'flipchart', folderId: null, value: '' }); }}>Флипчарт</li>
-              <li className="create-dropdown-item" onClick={() => { setCreateMenuOpen(false); setInlineInput({ visible: true, type: 'folder', folderId: null, value: '' }); }}>Папка</li>
-            </ul>
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 4,
+                background: 'var(--bg-sidebar)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                minWidth: 160,
+                zIndex: 100,
+                padding: '4px 0',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  setInlineInput({ visible: true, type: 'document', folderId: null, value: '' });
+                }}
+              >
+                <FileText size={14} />
+                <span>Документ</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  setInlineInput({ visible: true, type: 'flipchart', folderId: null, value: '' });
+                }}
+              >
+                <Presentation size={14} />
+                <span>Флипчарт</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  borderTop: '1px solid var(--border-color)'
+                }}
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  setInlineInput({ visible: true, type: 'folder', folderId: null, value: '' });
+                }}
+              >
+                <Folder size={14} />
+                <span>Папку</span>
+              </button>
+            </div>
           )}
         </div>
 
+        {/* Дерево папок и документов */}
         <div id="tree-container">
           {tree.folders.map(folder => {
             const isFoldCollapsed = collapsedFolders.has(folder.id);
@@ -184,15 +455,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="folder-name">{folder.name}</span>
                   </div>
                   <div className="folder-actions" onClick={e => e.stopPropagation()}>
-                    <button className="action-btn" title="Добавить документ" onClick={() => setInlineInput({ visible: true, type: 'document', folderId: folder.id, value: '' })}>+</button>
-                    <button className="action-btn" title="Добавить флипчарт" onClick={() => setInlineInput({ visible: true, type: 'flipchart', folderId: folder.id, value: '' })}>🎨</button>
-                    <button className="action-btn" title="Переименовать" onClick={() => {
-                      const newN = prompt('Название папки:', folder.name);
-                      if (newN && newN.trim()) onRenameFolder(folder.id, newN.trim());
-                    }}>✎</button>
-                    <button className="action-btn" title="Удалить" onClick={() => {
-                      if (confirm('Удалить папку? Документы переместятся в корень.')) onDeleteFolder(folder.id);
-                    }}>&times;</button>
+                    <button 
+                      className="action-btn" 
+                      title="Добавить документ" 
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => setInlineInput({ visible: true, type: 'document', folderId: folder.id, value: '' })}
+                    >
+                      <Plus size={13} />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Добавить флипчарт" 
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => setInlineInput({ visible: true, type: 'flipchart', folderId: folder.id, value: '' })}
+                    >
+                      <Presentation size={13} />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Переименовать" 
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => {
+                        const newN = prompt('Название папки:', folder.name);
+                        if (newN && newN.trim()) onRenameFolder(folder.id, newN.trim());
+                      }}
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Удалить" 
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => {
+                        if (confirm('Удалить папку? Документы переместятся в корень.')) onDeleteFolder(folder.id);
+                      }}
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
                 </div>
 
@@ -210,7 +509,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
                         <span className="doc-name">{doc.title}</span>
                         <div className="doc-actions" onClick={e => e.stopPropagation()}>
-                          <button className="action-btn" onClick={() => { if (confirm('Удалить документ?')) onDeleteDoc(doc.id); }}>&times;</button>
+                          <button className="action-btn" onClick={() => { if (confirm('Удалить документ?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
                         </div>
                       </li>
                     ))}
@@ -237,7 +536,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="doc-icon-svg">{doc.type === 'flipchart' ? <Layout size={14} /> : <FileText size={14} />}</span>
                 <span className="doc-name">{doc.title}</span>
                 <div className="doc-actions" onClick={e => e.stopPropagation()}>
-                  <button className="action-btn" onClick={() => { if (confirm('Удалить элемент?')) onDeleteDoc(doc.id); }}>&times;</button>
+                  <button className="action-btn" onClick={() => { if (confirm('Удалить элемент?')) onDeleteDoc(doc.id); }}><X size={12} /></button>
                 </div>
               </li>
             ))}
@@ -259,7 +558,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
             <button className="btn-inline-ok" onClick={handleConfirmInline}>Ок</button>
-            <button className="btn-inline-cancel" onClick={() => setInlineInput({ ...inlineInput, visible: false })}>&times;</button>
+            <button className="btn-inline-cancel" onClick={() => setInlineInput({ ...inlineInput, visible: false })}><X size={12} /></button>
           </div>
         )}
 

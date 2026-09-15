@@ -51,6 +51,8 @@ export interface PyWebViewAPI {
   get_initial_state(): Promise<InitialState>;
   create_workspace(name: string): Promise<CreateWorkspaceResponse>;
   rename_workspace(wsId: number, newName: string): Promise<string>;
+  export_workspace(wsId: number): Promise<{ status: string; path?: string; message?: string }>;
+  import_workspace(): Promise<{ status: string; workspace_id?: number; workspace_name?: string; initial_doc_id?: number; message?: string }>;
   get_workspace_tree(wsId: number): Promise<WorkspaceTree>;
   create_folder(wsId: number, name: string): Promise<number>;
   rename_folder(folderId: number, newName: string): Promise<string>;

@@ -100,6 +100,32 @@ export default function App() {
     await loadDoc(res.initial_doc_id);
   };
 
+  const handleExportWorkspace = async () => {
+    if (!api || !workspaceId) return;
+    const res = await api.export_workspace(workspaceId);
+    if (res.status === 'ok') {
+      alert('Рабочее пространство успешно экспортировано в файл!');
+    } else if (res.status === 'error') {
+      alert('Ошибка при экспорте: ' + res.message);
+    }
+  };
+
+  const handleImportWorkspace = async () => {
+    if (!api) return;
+    const res = await api.import_workspace();
+    if (res.status === 'ok' && res.workspace_id) {
+      setWorkspaceId(res.workspace_id);
+      setWorkspaceName(res.workspace_name || 'Импортированное пространство');
+      await refreshTree(res.workspace_id);
+      if (res.initial_doc_id) {
+        await loadDoc(res.initial_doc_id);
+      }
+      alert('Рабочее пространство успешно загружено!');
+    } else if (res.status === 'error') {
+      alert('Ошибка загрузки файла: ' + res.message);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       {showWelcome && (
@@ -170,6 +196,8 @@ export default function App() {
           await api.update_folders_order(workspaceId, folderIds);
           refreshTree(workspaceId);
         }}
+        onExportWorkspace={handleExportWorkspace}
+        onImportWorkspace={handleImportWorkspace}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 

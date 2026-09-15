@@ -1,6 +1,8 @@
 import json
+import os
 from datetime import datetime
 from database import get_db_connection
+import webview
 
 
 class Api:
@@ -103,6 +105,138 @@ class Api:
             return new_name
         finally:
             conn.close()
+
+    # --- ЭКСПОРТ И ИМПОРТ РАБОЧИХ ПРОСТРАНСТВ НА ДИСК ---
+    def export_workspace(self, ws_id):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM workspaces WHERE id = ?", (ws_id,))
+            ws_row = cursor.fetchone()
+            if not ws_row:
+                return {"status": "error", "message": "Пространство не найдено"}
+            ws_name = ws_row[0]
+
+            cursor.execute("SELECT id, name, sort_order FROM folders WHERE workspace_id = ? ORDER BY sort_order ASC, id ASC", (ws_id,))
+            folders = [{"id": r[0], "name": r[1], "sort_order": r[2]} for r in cursor.fetchall()]
+
+            cursor.execute(
+                "SELECT folder_id, title, content, type, sort_order FROM documents WHERE workspace_id = ? ORDER BY sort_order ASC, id ASC",
+                (ws_id,)
+            )
+            documents = []
+            for r in cursor.fetchall():
+                try:
+                    c = json.loads(r[2]) if r[2] else {}
+                except Exception:
+                    c = {}
+                documents.append({
+                    "folder_id": r[0],
+                    "title": r[1],
+                    "content": c,
+                    "type": r[3],
+                    "sort_order": r[4]
+                })
+
+            export_data = {
+                "format": "radian_workspace",
+                "version": 1,
+                "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "workspace": {"name": ws_name},
+                "folders": folders,
+                "documents": documents
+            }
+
+            safe_name = "".join(c for c in ws_name if c.isalnum() or c in (' ', '_', '-')).strip()
+            save_path = webview.windows[0].create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=f"{safe_name or 'workspace'}.radian",
+                file_types=('Radian Files (*.radian)', 'JSON Files (*.json)', 'All Files (*.*)')
+            )
+
+            if not save_path:
+                return {"status": "cancelled"}
+
+            target_path = save_path if isinstance(save_path, str) else save_path[0]
+            with open(target_path, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+            return {"status": "ok", "path": target_path}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+        finally:
+            conn.close()
+
+    def import_workspace(self):
+        try:
+            file_types = ('Radian Files (*.radian;*.json)', 'All Files (*.*)')
+            chosen_files = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=file_types
+            )
+
+            if not chosen_files:
+                return {"status": "cancelled"}
+
+            file_path = chosen_files[0]
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            if not isinstance(data, dict) or "folders" not in data or "documents" not in data:
+                return {"status": "error", "message": "Неверный формат файла рабочего пространства"}
+
+            ws_title = data.get("workspace", {}).get("name", "Импортированное пространство")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            conn = get_db_connection()
+            try:
+                with conn:
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO workspaces (name, created_at) VALUES (?, ?)", (ws_title, now))
+                    new_ws_id = cursor.lastrowid
+
+                    old_to_new_folder_id = {}
+                    for f in data.get("folders", []):
+                        cursor.execute(
+                            "INSERT INTO folders (workspace_id, name, sort_order, created_at) VALUES (?, ?, ?, ?)",
+                            (new_ws_id, f.get("name", "Папка"), f.get("sort_order", 0), now)
+                        )
+                        old_to_new_folder_id[f.get("id")] = cursor.lastrowid
+
+                    initial_doc_id = None
+                    for doc in data.get("documents", []):
+                        old_folder_id = doc.get("folder_id")
+                        new_folder_id = old_to_new_folder_id.get(old_folder_id) if old_folder_id else None
+                        content_str = json.dumps(doc.get("content", {}), ensure_ascii=False)
+
+                        cursor.execute(
+                            "INSERT INTO documents (workspace_id, folder_id, title, content, type, sort_order, updated_at) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (
+                                new_ws_id,
+                                new_folder_id,
+                                doc.get("title", "Без названия"),
+                                content_str,
+                                doc.get("type", "document"),
+                                doc.get("sort_order", 0),
+                                now
+                            )
+                        )
+                        if initial_doc_id is None:
+                            initial_doc_id = cursor.lastrowid
+
+                    return {
+                        "status": "ok",
+                        "workspace_id": new_ws_id,
+                        "workspace_name": ws_title,
+                        "initial_doc_id": initial_doc_id
+                    }
+            finally:
+                conn.close()
+
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     # --- ПАПКИ И ДОКУМЕНТЫ / ФЛИПЧАРТЫ ---
     def get_workspace_tree(self, ws_id):
