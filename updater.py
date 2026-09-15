@@ -5,9 +5,8 @@ import urllib.request
 import tempfile
 import subprocess
 
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 GITHUB_REPO = "reeqwer-cmd/Radius"
-GITHUB_TOKEN = "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"
 
 def get_executable_path():
     """Возвращает путь к реальному .exe файлу (даже при запуске через PyInstaller)."""
@@ -16,50 +15,67 @@ def get_executable_path():
     return os.path.abspath(sys.argv[0])
 
 def check_for_updates():
-    """Проверяет наличие новых релизов на GitHub через Fine-grained токен."""
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    """Проверяет наличие новых публичных релизов на GitHub."""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
     headers = {
         "User-Agent": "Radius-App",
-        "Accept": "application/vnd.github.v3+json",
-        "Authorization": f"Bearer {GITHUB_TOKEN}"
+        "Accept": "application/vnd.github.v3+json"
     }
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=6) as resp:
             if resp.status != 200:
                 return {"has_update": False, "current_version": APP_VERSION}
-            data = json.loads(resp.read().decode('utf-8'))
+            releases = json.loads(resp.read().decode('utf-8'))
 
-        tag_name = data.get("tag_name", "").lstrip("v").strip()
+        if not releases or not isinstance(releases, list):
+            return {"has_update": False, "current_version": APP_VERSION}
+
+        # Выбираем самый свежий релиз, не являющийся черновиком
+        latest_release = next((r for r in releases if not r.get("draft", False)), None)
+        if not latest_release:
+            return {"has_update": False, "current_version": APP_VERSION}
+
+        tag_name = latest_release.get("tag_name", "").lstrip("v").strip()
         if not tag_name:
             return {"has_update": False, "current_version": APP_VERSION}
 
-        # Сравниваем версии числами (например, 1.0.1 > 1.0.0)
         curr_parts = [int(p) for p in APP_VERSION.split(".") if p.isdigit()]
         remote_parts = [int(p) for p in tag_name.split(".") if p.isdigit()]
 
         if remote_parts > curr_parts:
             download_url = None
-            for asset in data.get("assets", []):
-                if asset.get("name", "").lower().endswith(".exe"):
-                    # Для приватных репозиториев используем прямой asset API URL
-                    download_url = asset.get("url")
+            assets = latest_release.get("assets", [])
+
+            # 1. Приоритет: точное имя Радиан.exe
+            for asset in assets:
+                name = asset.get("name", "")
+                if name.lower() == "радиан.exe":
+                    download_url = asset.get("browser_download_url")
                     break
+
+            # 2. Фолбэк на любой скомпилированный .exe
+            if not download_url:
+                for asset in assets:
+                    if asset.get("name", "").lower().endswith(".exe"):
+                        download_url = asset.get("browser_download_url")
+                        break
 
             return {
                 "has_update": True,
                 "version": tag_name,
                 "current_version": APP_VERSION,
-                "changelog": data.get("body", "Улучшения и исправления ошибок."),
+                "changelog": latest_release.get("body", "Улучшения и исправления ошибок."),
                 "download_url": download_url
             }
-        return {"has_update": False, "current_version": APP_VERSION}
+
+        return {"has_update": False, "current_version": APP_VERSION, "version": tag_name}
     except Exception as e:
         return {"has_update": False, "error": str(e), "current_version": APP_VERSION}
 
-def download_and_install_update(asset_api_url):
-    """Скачивает бинарник из приватного релиза и выполняет горячую замену exe."""
-    if not asset_api_url:
+def download_and_install_update(download_url):
+    """Скачивает Радиан.exe по прямой ссылке и выполняет горячую подмену процесса."""
+    if not download_url:
         return {"status": "error", "message": "Файл обновления не найден в релизе"}
 
     target_exe = get_executable_path()
@@ -69,14 +85,9 @@ def download_and_install_update(asset_api_url):
     temp_dir = tempfile.gettempdir()
     new_exe_path = os.path.join(temp_dir, "Radius_latest.exe")
 
-    # Для выгрузки бинарника из приватного API нужен заголовок application/octet-stream
     req = urllib.request.Request(
-        asset_api_url,
-        headers={
-            "User-Agent": "Radius-App",
-            "Accept": "application/octet-stream",
-            "Authorization": f"Bearer {GITHUB_TOKEN}"
-        }
+        download_url,
+        headers={"User-Agent": "Radius-App"}
     )
 
     try:

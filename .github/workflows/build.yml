@@ -38,8 +38,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Exe
+        shell: powershell
         run: |
-          pyinstaller --noconsole --onefile --name "Радиан" --add-data "frontend/dist;frontend/dist" Main.py
+          pyinstaller --noconsole --onefile --name Radius --add-data "frontend/dist;frontend/dist" Main.py
+          Copy-Item "dist\Radius.exe" "dist\Радиан.exe" -Force
 
       - name: Upload Exe to Release
         uses: softprops/action-gh-release@v2
