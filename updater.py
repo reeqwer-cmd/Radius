@@ -5,17 +5,15 @@ import urllib.request
 import tempfile
 import subprocess
 
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 
 def get_executable_path():
-    """Возвращает путь к реальному .exe файлу (даже при запуске через PyInstaller)."""
     if getattr(sys, 'frozen', False):
         return sys.executable
     return os.path.abspath(sys.argv[0])
 
 def check_for_updates():
-    """Проверяет наличие новых публичных релизов на GitHub."""
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
     headers = {
         "User-Agent": "Radius-App",
@@ -31,7 +29,6 @@ def check_for_updates():
         if not releases or not isinstance(releases, list):
             return {"has_update": False, "current_version": APP_VERSION}
 
-        # Выбираем самый свежий релиз, не являющийся черновиком
         latest_release = next((r for r in releases if not r.get("draft", False)), None)
         if not latest_release:
             return {"has_update": False, "current_version": APP_VERSION}
@@ -47,34 +44,27 @@ def check_for_updates():
             download_url = None
             assets = latest_release.get("assets", [])
 
-            # 1. Приоритет: точное имя Радиан.exe
+            # Ищем любой исполняемый файл в ассетах
             for asset in assets:
-                name = asset.get("name", "")
-                if name.lower() == "радиан.exe":
+                name = asset.get("name", "").lower()
+                if name.endswith(".exe"):
                     download_url = asset.get("browser_download_url")
                     break
 
-            # 2. Фолбэк на любой скомпилированный .exe
-            if not download_url:
-                for asset in assets:
-                    if asset.get("name", "").lower().endswith(".exe"):
-                        download_url = asset.get("browser_download_url")
-                        break
-
-            return {
-                "has_update": True,
-                "version": tag_name,
-                "current_version": APP_VERSION,
-                "changelog": latest_release.get("body", "Улучшения и исправления ошибок."),
-                "download_url": download_url
-            }
+            if download_url:
+                return {
+                    "has_update": True,
+                    "version": tag_name,
+                    "current_version": APP_VERSION,
+                    "changelog": latest_release.get("body", "Улучшения и исправления ошибок."),
+                    "download_url": download_url
+                }
 
         return {"has_update": False, "current_version": APP_VERSION, "version": tag_name}
     except Exception as e:
         return {"has_update": False, "error": str(e), "current_version": APP_VERSION}
 
 def download_and_install_update(download_url):
-    """Скачивает Радиан.exe по прямой ссылке и выполняет горячую подмену процесса."""
     if not download_url:
         return {"status": "error", "message": "Файл обновления не найден в релизе"}
 
@@ -83,7 +73,7 @@ def download_and_install_update(download_url):
         return {"status": "error", "message": "Автообновление доступно только при запуске скомпилированного .exe"}
 
     temp_dir = tempfile.gettempdir()
-    new_exe_path = os.path.join(temp_dir, "Radius_latest.exe")
+    new_exe_path = os.path.join(temp_dir, "Radian_update.exe")
 
     req = urllib.request.Request(
         download_url,
@@ -101,7 +91,7 @@ def download_and_install_update(download_url):
         return {"status": "error", "message": f"Не удалось загрузить обновление: {e}"}
 
     pid = os.getpid()
-    bat_path = os.path.join(temp_dir, "radius_patcher.bat")
+    bat_path = os.path.join(temp_dir, "radian_patcher.bat")
     bat_script = f"""@echo off
 chcp 65001 > nul
 :wait_loop

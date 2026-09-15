@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Build Frontend
         run: |
@@ -38,14 +38,14 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Exe
-        shell: powershell
+        shell: pwsh
         run: |
-          pyinstaller --noconsole --onefile --name Radius --add-data "frontend/dist;frontend/dist" Main.py
-          Copy-Item "dist\Radius.exe" "dist\Радиан.exe" -Force
+          pyinstaller --noconsole --onefile --name "Radian" --add-data "frontend/dist;frontend/dist" Main.py
+          Get-ChildItem dist\
 
       - name: Upload Exe to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Радиан.exe
+          files: dist/Radian.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
