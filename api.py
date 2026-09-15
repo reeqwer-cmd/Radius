@@ -115,7 +115,6 @@ class Api:
             )
             folders = [{"id": r[0], "name": r[1], "sort_order": r[2]} for r in cursor.fetchall()]
 
-            # Возвращаем также тип сущности ('document' или 'flipchart')
             cursor.execute(
                 "SELECT id, folder_id, title, sort_order, COALESCE(type, 'document') "
                 "FROM documents WHERE workspace_id = ? ORDER BY sort_order ASC, id ASC",
@@ -176,14 +175,27 @@ class Api:
         finally:
             conn.close()
 
+    def update_folders_order(self, ws_id, ordered_folder_ids):
+        conn = get_db_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                for index, folder_id in enumerate(ordered_folder_ids):
+                    cursor.execute(
+                        "UPDATE folders SET sort_order = ? WHERE id = ? AND workspace_id = ?",
+                        (index, folder_id, ws_id)
+                    )
+            return True
+        finally:
+            conn.close()
+
     def create_document(self, ws_id, title, folder_id=None, doc_type="document"):
         title = title.strip() or ("Новый флипчарт" if doc_type == "flipchart" else "Новый документ")
         
-        # Начальное состояние в зависимости от типа
         if doc_type == "flipchart":
             initial_content = {
                 "viewport": {"x": 0, "y": 0, "zoom": 1.0},
-                "nodes": [],
+                "elements": [],
                 "connections": [],
                 "drawings": []
             }
@@ -219,7 +231,6 @@ class Api:
             conn.close()
 
     def create_flipchart(self, ws_id, title="Новый флипчарт", folder_id=None):
-        """Создание флипчарта (прямой метод для фронтенда)."""
         return self.create_document(ws_id, title, folder_id=folder_id, doc_type="flipchart")
 
     def load_document(self, doc_id):

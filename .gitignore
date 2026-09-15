@@ -1,2 +1,25 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
 
+# Virtual Environments
+.venv/
+venv/
 venv_win/
+ENV/
+
+# Node
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

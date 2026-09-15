@@ -1117,3 +1117,16 @@ input:checked + .slider:before {
 .port-bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
 .port-left   { left: -6px; top: 50%; transform: translateY(-50%); }
 .port-right  { right: -6px; top: 50%; transform: translateY(-50%); }
+.contenteditable-text::-webkit-scrollbar {
+  width: 4px;
+}
+.contenteditable-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+.contenteditable-text::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+.contenteditable-text::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
