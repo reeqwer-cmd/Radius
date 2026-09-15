@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Folder, FolderOpen, FileText, Layout, GripVertical, Settings, 
   ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation,
-  Check, Trash2
+  Check, Trash2, Calendar as CalendarIcon
 } from 'lucide-react';
 import { WorkspaceTree, DocItem, DocType, WorkspaceItem, FolderItem, TreeOrderItem } from '../types/api';
 
@@ -12,7 +12,10 @@ interface SidebarProps {
   allWorkspaces: WorkspaceItem[];
   currentWsId: number | null;
   currentDocId: number | null;
+  activeView: 'editor' | 'calendar';
+  modulesState: Record<string, boolean>;
   onSelectDoc: (id: number) => void;
+  onSelectCalendar: () => void;
   onSelectWorkspace: (wsId: number) => Promise<void>;
   onCreateWorkspacePrompt: () => void;
   onDeleteWorkspacePrompt: (wsId: number) => void;
@@ -38,7 +41,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   allWorkspaces,
   currentWsId,
   currentDocId,
+  activeView,
+  modulesState,
   onSelectDoc,
+  onSelectCalendar,
   onSelectWorkspace,
   onCreateWorkspacePrompt,
   onDeleteWorkspacePrompt,
@@ -238,6 +244,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
   };
+
+  const isCalendarEnabled = modulesState['module_calendar'] !== false;
 
   return (
     <>
@@ -503,6 +511,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
+        {/* Кнопка перехода в календарь (отображается, если модуль включен) */}
+        {isCalendarEnabled && (
+          <div
+            className={`doc-item ${activeView === 'calendar' ? 'active' : ''}`}
+            onClick={onSelectCalendar}
+            style={{
+              marginBottom: 10,
+              cursor: 'pointer',
+              fontWeight: activeView === 'calendar' ? 700 : 500
+            }}
+          >
+            <span className="doc-icon-svg">
+              <CalendarIcon size={14} />
+            </span>
+            <span className="doc-name">Календарь заметок</span>
+          </div>
+        )}
+
         {/* Заголовок документов с кнопкой добавления */}
         <div
           ref={createMenuRef}
@@ -712,7 +738,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {folderDocs.map(doc => (
                         <li
                           key={`doc_${doc.id}`}
-                          className={`doc-item ${doc.id === currentDocId ? 'active' : ''}`}
+                          className={`doc-item ${activeView === 'editor' && doc.id === currentDocId ? 'active' : ''}`}
                           draggable
                           onDragStart={e => {
                             e.stopPropagation();
@@ -741,7 +767,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <div
                   key={`root_doc_${doc.id}`}
-                  className={`doc-item ${doc.id === currentDocId ? 'active' : ''}`}
+                  className={`doc-item ${activeView === 'editor' && doc.id === currentDocId ? 'active' : ''}`}
                   draggable
                   onDragStart={e => {
                     setDraggedEntity({ type: 'doc', id: doc.id, fromFolderId: null });

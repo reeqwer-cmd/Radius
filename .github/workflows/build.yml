@@ -40,12 +40,12 @@ jobs:
       - name: Build Exe
         shell: pwsh
         run: |
-          pyinstaller --noconsole --onefile --name "Radian" --add-data "frontend/dist;frontend/dist" Main.py
+          pyinstaller --noconsole --onefile --name "Радиан" --add-data "frontend/dist;frontend/dist" Main.py
           Get-ChildItem dist\
 
       - name: Upload Exe to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Radian.exe
+          files: dist/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

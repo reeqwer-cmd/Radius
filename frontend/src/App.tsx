@@ -3,6 +3,7 @@ import { usePyWebView } from './hooks/usePyWebView';
 import { Sidebar } from './components/Sidebar';
 import { EditorView } from './components/EditorView';
 import { FlipchartView } from './components/FlipchartView';
+import { CalendarView } from './components/CalendarView';
 import { SettingsModal } from './components/SettingsModal';
 import { WorkspaceTree, LoadedDocument, DocType, UpdateInfo, WorkspaceItem, TreeOrderItem } from './types/api';
 
@@ -18,6 +19,9 @@ export default function App() {
   const [docTitle, setDocTitle] = useState<string>('');
   const [theme, setTheme] = useState<string>('emerald_green');
   const [font, setFont] = useState<string>('Inter');
+  const [modulesState, setModulesState] = useState<Record<string, boolean>>({});
+  const [activeView, setActiveView] = useState<'editor' | 'calendar'>('editor');
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [status, setStatus] = useState('Готов');
 
@@ -43,6 +47,9 @@ export default function App() {
       const savedFont = await api.get_font();
       setFont(savedFont || 'Inter');
       document.documentElement.style.setProperty('--app-font', savedFont || 'Inter');
+
+      const modules = await api.get_modules_state();
+      setModulesState(modules || {});
 
       const wsList = await api.get_all_workspaces();
       setAllWorkspaces(wsList);
@@ -70,14 +77,8 @@ export default function App() {
     const treeData = await api.get_workspace_tree(wsId);
     setTree(treeData);
 
-    if (treeData.documents.length > 0) {
-      const currentStillExists = treeData.documents.some(d => d.id === currentDocId);
-      if (!currentStillExists) {
-        loadDoc(treeData.documents[0].id);
-      }
-    } else {
-      setCurrentDocId(null);
-      setCurrentDoc(null);
+    if (treeData.documents.length > 0 && currentDocId === null && activeView === 'editor') {
+      loadDoc(treeData.documents[0].id);
     }
   };
 
@@ -94,6 +95,7 @@ export default function App() {
     if (!api) return;
     const data = await api.load_document(id);
     if (data) {
+      setActiveView('editor');
       setCurrentDocId(id);
       setCurrentDoc(data);
       setDocTitle(data.title);
@@ -102,6 +104,7 @@ export default function App() {
   };
 
   const triggerAutoSave = (updatedContent?: any, newTitle?: string) => {
+    if (activeView !== 'editor') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setStatus('Изменения...');
 
@@ -133,6 +136,11 @@ export default function App() {
     if (api) await api.set_font(fontName);
   };
 
+  const handleToggleModule = async (moduleKey: string, enabled: boolean) => {
+    setModulesState(prev => ({ ...prev, [moduleKey]: enabled }));
+    if (api) await api.toggle_module(moduleKey, enabled);
+  };
+
   const handleCreateWorkspace = async (name?: string) => {
     if (!api) return;
     const wsName = name || initialWsName;
@@ -150,7 +158,7 @@ export default function App() {
 
   const handleDeleteWorkspace = async (wsId: number) => {
     if (!api) return;
-    if (!confirm('Вы уверены, что хотите удалить это рабочее пространство со всеми документами?')) return;
+    if (!confirm('Вы уверены, что хотите удалить это рабочее пространство?')) return;
     await api.delete_workspace(wsId);
 
     const wsList = await api.get_all_workspaces();
@@ -166,11 +174,8 @@ export default function App() {
   const handleExportWorkspace = async () => {
     if (!api || !workspaceId) return;
     const res = await api.export_workspace(workspaceId);
-    if (res.status === 'ok') {
-      alert('Рабочее пространство успешно сохранено на диск!');
-    } else if (res.status === 'error') {
-      alert('Ошибка при сохранении: ' + res.message);
-    }
+    if (res.status === 'ok') alert('Рабочее пространство сохранено!');
+    else if (res.status === 'error') alert('Ошибка: ' + res.message);
   };
 
   const handleImportWorkspace = async () => {
@@ -179,17 +184,13 @@ export default function App() {
     if (res.status === 'ok' && res.workspace_id) {
       setWorkspaceId(res.workspace_id);
       setWorkspaceName(res.workspace_name || 'Импортированное пространство');
-
       const wsList = await api.get_all_workspaces();
       setAllWorkspaces(wsList);
-
       await refreshTree(res.workspace_id);
-      if (res.initial_doc_id) {
-        await loadDoc(res.initial_doc_id);
-      }
-      alert('Рабочее пространство загружено и установлено как активное!');
+      if (res.initial_doc_id) await loadDoc(res.initial_doc_id);
+      alert('Пространство успешно загружено!');
     } else if (res.status === 'error') {
-      alert('Ошибка загрузки файла: ' + res.message);
+      alert('Ошибка: ' + res.message);
     }
   };
 
@@ -205,16 +206,9 @@ export default function App() {
         <div id="welcome-screen" style={{ display: 'flex' }}>
           <div className="welcome-card">
             <h2>Добро пожаловать в Радиан</h2>
-            <p>Для начала работы создайте первое рабочее пространство.</p>
-            <input
-              type="text"
-              value={initialWsName}
-              onChange={e => setInitialWsName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleCreateWorkspace(); }}
-            />
-            <button className="btn-save" style={{ width: '100%', padding: '10px' }} onClick={() => handleCreateWorkspace()}>
-              Создать рабочее пространство
-            </button>
+            <p>Создайте первое рабочее пространство.</p>
+            <input type="text" value={initialWsName} onChange={e => setInitialWsName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateWorkspace(); }} />
+            <button className="btn-save" style={{ width: '100%', padding: '10px' }} onClick={() => handleCreateWorkspace()}>Создать пространство</button>
           </div>
         </div>
       )}
@@ -225,104 +219,47 @@ export default function App() {
         allWorkspaces={allWorkspaces}
         currentWsId={workspaceId}
         currentDocId={currentDocId}
+        activeView={activeView}
+        modulesState={modulesState}
         onSelectDoc={loadDoc}
+        onSelectCalendar={() => setActiveView('calendar')}
         onSelectWorkspace={handleSelectWorkspace}
-        onCreateWorkspacePrompt={() => {
-          const name = prompt('Название нового рабочего пространства:');
-          if (name && name.trim()) handleCreateWorkspace(name.trim());
-        }}
+        onCreateWorkspacePrompt={() => { const name = prompt('Название пространства:'); if (name && name.trim()) handleCreateWorkspace(name.trim()); }}
         onDeleteWorkspacePrompt={handleDeleteWorkspace}
-        onCreateFolder={async name => {
-          if (!api || !workspaceId) return;
-          await api.create_folder(workspaceId, name);
-          refreshTree(workspaceId);
-        }}
-        onCreateDoc={async (title, folderId, type: DocType) => {
-          if (!api || !workspaceId) return;
-          const newId = await api.create_document(workspaceId, title, folderId, type);
-          await refreshTree(workspaceId);
-          await loadDoc(newId);
-        }}
-        onRenameWorkspace={async name => {
-          if (!api || !workspaceId) return;
-          const updated = await api.rename_workspace(workspaceId, name);
-          setWorkspaceName(updated);
-          const wsList = await api.get_all_workspaces();
-          setAllWorkspaces(wsList);
-        }}
-        onRenameFolder={async (id, name) => {
-          if (!api || !workspaceId) return;
-          await api.rename_folder(id, name);
-          refreshTree(workspaceId);
-        }}
-        onDeleteFolder={async id => {
-          if (!api || !workspaceId) return;
-          await api.delete_folder(id);
-          refreshTree(workspaceId);
-        }}
-        onDeleteDoc={async id => {
-          if (!api || !workspaceId) return;
-          await api.delete_document(id);
-          if (currentDocId === id) {
-            setCurrentDocId(null);
-            setCurrentDoc(null);
-          }
-          refreshTree(workspaceId);
-        }}
+        onCreateFolder={async name => { if (!api || !workspaceId) return; await api.create_folder(workspaceId, name); refreshTree(workspaceId); }}
+        onCreateDoc={async (title, folderId, type: DocType) => { if (!api || !workspaceId) return; const newId = await api.create_document(workspaceId, title, folderId, type); await refreshTree(workspaceId); await loadDoc(newId); }}
+        onRenameWorkspace={async name => { if (!api || !workspaceId) return; const updated = await api.rename_workspace(workspaceId, name); setWorkspaceName(updated); setAllWorkspaces(await api.get_all_workspaces()); }}
+        onRenameFolder={async (id, name) => { if (!api || !workspaceId) return; await api.rename_folder(id, name); refreshTree(workspaceId); }}
+        onDeleteFolder={async id => { if (!api || !workspaceId) return; await api.delete_folder(id); refreshTree(workspaceId); }}
+        onDeleteDoc={async id => { if (!api || !workspaceId) return; await api.delete_document(id); if (currentDocId === id) { setCurrentDocId(null); setCurrentDoc(null); } refreshTree(workspaceId); }}
         onReorderTree={handleReorderTree}
         onExportWorkspace={handleExportWorkspace}
         onImportWorkspace={handleImportWorkspace}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <div
-        id="main-content"
-        style={{
-          flex: 1,
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: currentDoc?.type === 'flipchart' ? '14px 20px 14px' : '24px 48px 40px',
-          overflow: 'hidden',
-          boxSizing: 'border-box'
-        }}
-      >
-        <div className="top-nav" style={{ marginBottom: currentDoc?.type === 'flipchart' ? '10px' : '20px' }}>
-          <div className="title-input-wrap">
-            <input
-              type="text"
-              className="doc-title-input"
-              placeholder="Название документа"
-              value={docTitle}
-              onChange={e => {
-                setDocTitle(e.target.value);
-                triggerAutoSave(undefined, e.target.value);
-              }}
-            />
+      <div id="main-content" style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', padding: activeView === 'calendar' ? '24px 32px' : (currentDoc?.type === 'flipchart' ? '14px 20px' : '24px 48px 40px'), overflow: 'hidden', boxSizing: 'border-box' }}>
+        {activeView === 'editor' && (
+          <div className="top-nav" style={{ marginBottom: currentDoc?.type === 'flipchart' ? '10px' : '20px' }}>
+            <div className="title-input-wrap">
+              <input type="text" className="doc-title-input" placeholder="Название документа" value={docTitle} onChange={e => { setDocTitle(e.target.value); triggerAutoSave(undefined, e.target.value); }} />
+            </div>
+            <div className="top-nav-actions">
+              <span id="status" className="status-badge">{status}</span>
+              <button className="btn-save" onClick={() => triggerAutoSave()}>Сохранить</button>
+            </div>
           </div>
-          <div className="top-nav-actions">
-            <span id="status" className="status-badge">{status}</span>
-            <button className="btn-save" onClick={() => triggerAutoSave()}>Сохранить</button>
-          </div>
-        </div>
+        )}
 
-        <div style={{ flex: 1, position: 'relative', overflow: currentDoc?.type === 'flipchart' ? 'hidden' : 'auto', minHeight: 0 }}>
-          {currentDoc && currentDoc.type === 'document' && (
-            <EditorView
-              key={currentDocId}
-              data={currentDoc.content}
-              onChange={updated => triggerAutoSave(updated)}
-            />
+        <div style={{ flex: 1, position: 'relative', overflow: activeView === 'calendar' || currentDoc?.type === 'flipchart' ? 'hidden' : 'auto', minHeight: 0 }}>
+          {activeView === 'calendar' && <CalendarView workspaceId={workspaceId} api={api} />}
+
+          {activeView === 'editor' && currentDoc && currentDoc.type === 'document' && (
+            <EditorView key={currentDocId} data={currentDoc.content} onChange={updated => triggerAutoSave(updated)} />
           )}
 
-          {currentDoc && currentDoc.type === 'flipchart' && (
-            <FlipchartView
-              key={currentDocId}
-              data={currentDoc.content}
-              api={api}
-              onOpenDocument={loadDoc}
-              onChange={updated => triggerAutoSave(updated)}
-            />
+          {activeView === 'editor' && currentDoc && currentDoc.type === 'flipchart' && (
+            <FlipchartView key={currentDocId} data={currentDoc.content} api={api} onOpenDocument={loadDoc} onChange={updated => triggerAutoSave(updated)} />
           )}
         </div>
       </div>
@@ -331,67 +268,13 @@ export default function App() {
         isOpen={isSettingsOpen}
         currentTheme={theme}
         currentFont={font}
+        modulesState={modulesState}
         api={api}
         onSelectTheme={handleApplyTheme}
         onSelectFont={handleApplyFont}
+        onToggleModule={handleToggleModule}
         onClose={() => setIsSettingsOpen(false)}
       />
-
-      {updateModal.isOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div style={{
-            background: 'var(--bg-main)', border: '1px solid var(--border-color)',
-            borderRadius: 12, padding: 24, width: 440, maxWidth: '90%',
-            boxShadow: '0 12px 36px rgba(0,0,0,0.5)', color: 'var(--text-main)'
-          }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 18 }}>
-              Доступно обновление Радиан v{updateModal.info?.version}
-            </h3>
-            <p style={{ fontSize: 12, opacity: 0.7, margin: '0 0 16px 0' }}>
-              Текущая версия: v{updateModal.info?.current_version}
-            </p>
-
-            <div style={{
-              background: 'rgba(255,255,255,0.04)', padding: 12, borderRadius: 6,
-              fontSize: 13, maxHeight: 150, overflowY: 'auto', marginBottom: 20, whiteSpace: 'pre-wrap'
-            }}>
-              {updateModal.info?.changelog}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              {!updateModal.isUpdating && (
-                <button
-                  className="action-btn"
-                  style={{ padding: '8px 16px', borderRadius: 6 }}
-                  onClick={() => setUpdateModal({ ...updateModal, isOpen: false })}
-                >
-                  Позже
-                </button>
-              )}
-              <button
-                className="btn-save"
-                disabled={updateModal.isUpdating}
-                style={{ padding: '8px 20px', borderRadius: 6 }}
-                onClick={async () => {
-                  setUpdateModal(prev => ({ ...prev, isUpdating: true }));
-                  if (api && updateModal.info?.download_url) {
-                    const res = await api.start_auto_update(updateModal.info.download_url);
-                    if (res && res.status === 'error') {
-                      alert(res.message);
-                      setUpdateModal(prev => ({ ...prev, isUpdating: false }));
-                    }
-                  }
-                }}
-              >
-                {updateModal.isUpdating ? 'Обновление и перезапуск...' : 'Обновить сейчас'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

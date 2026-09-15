@@ -172,6 +172,7 @@ class Api:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM documents WHERE workspace_id = ?", (ws_id,))
                 cursor.execute("DELETE FROM folders WHERE workspace_id = ?", (ws_id,))
+                cursor.execute("DELETE FROM calendar_notes WHERE workspace_id = ?", (ws_id,))
                 cursor.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
                 
                 cursor.execute("SELECT value FROM settings WHERE key = 'last_workspace_id'")
@@ -213,13 +214,22 @@ class Api:
                     "sort_order": r[4]
                 })
 
+            cursor.execute("SELECT date, content FROM calendar_notes WHERE workspace_id = ?", (ws_id,))
+            calendar_notes = {}
+            for r in cursor.fetchall():
+                try:
+                    calendar_notes[r[0]] = json.loads(r[1])
+                except Exception:
+                    calendar_notes[r[0]] = r[1]
+
             export_data = {
                 "format": "radian_workspace",
-                "version": 1,
+                "version": 2,
                 "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "workspace": {"name": ws_name},
                 "folders": folders,
-                "documents": documents
+                "documents": documents,
+                "calendar_notes": calendar_notes
             }
 
             safe_name = "".join(c for c in ws_name if c.isalnum() or c in (' ', '_', '-')).strip()
@@ -301,6 +311,13 @@ class Api:
                         )
                         if initial_doc_id is None:
                             initial_doc_id = cursor.lastrowid
+
+                    for date_str, note_content in data.get("calendar_notes", {}).items():
+                        c_str = json.dumps(note_content, ensure_ascii=False) if isinstance(note_content, (dict, list)) else str(note_content)
+                        cursor.execute(
+                            "INSERT OR REPLACE INTO calendar_notes (workspace_id, date, content, updated_at) VALUES (?, ?, ?, ?)",
+                            (new_ws_id, date_str, c_str, now)
+                        )
 
                     return {
                         "status": "ok",
@@ -485,11 +502,7 @@ class Api:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    # Универсальное перемещение элементов (папок и документов в любом порядке)
     def reorder_tree_items(self, ws_id, items):
-        """
-        items: список объектов [{'type': 'folder'|'doc', 'id': 1, 'folder_id': None|int, 'sort_order': 0}, ...]
-        """
         conn = get_db_connection()
         try:
             with conn:
@@ -520,5 +533,77 @@ class Api:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
             return True
+        finally:
+            conn.close()
+
+    # --- КАЛЕНДАРЬ ЕЖЕДНЕВНЫХ ЗАМЕТОК ---
+    def get_calendar_note(self, ws_id, date_str):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT content FROM calendar_notes WHERE workspace_id = ? AND date = ?", (ws_id, date_str))
+            row = cursor.fetchone()
+            if row and row[0]:
+                try:
+                    return json.loads(row[0])
+                except Exception:
+                    return {
+                        "blocks": [
+                            {"type": "paragraph", "data": {"text": row[0]}}
+                        ]
+                    }
+            return {
+                "blocks": [
+                    {"type": "paragraph", "data": {"text": ""}}
+                ]
+            }
+        finally:
+            conn.close()
+
+    def save_calendar_note(self, ws_id, date_str, content):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = get_db_connection()
+        try:
+            if isinstance(content, (dict, list)):
+                content_str = json.dumps(content, ensure_ascii=False)
+            else:
+                content_str = str(content)
+
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT OR REPLACE INTO calendar_notes (workspace_id, date, content, updated_at) VALUES (?, ?, ?, ?)",
+                    (ws_id, date_str, content_str, now)
+                )
+            return {"status": "ok", "time": now}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+        finally:
+            conn.close()
+
+    def get_calendar_notes_month(self, ws_id, year_month):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT date, content FROM calendar_notes WHERE workspace_id = ? AND date LIKE ?",
+                (ws_id, f"{year_month}%")
+            )
+            result = {}
+            for r in cursor.fetchall():
+                d, c = r[0], r[1]
+                has_content = False
+                if c and c.strip():
+                    try:
+                        parsed = json.loads(c)
+                        blocks = parsed.get("blocks", [])
+                        has_content = any(
+                            b.get("data", {}).get("text", "").strip() or b.get("data", {}).get("items", [])
+                            for b in blocks
+                        )
+                    except Exception:
+                        has_content = bool(c.strip())
+                result[d] = has_content
+            return result
         finally:
             conn.close()

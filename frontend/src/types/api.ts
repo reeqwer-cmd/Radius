@@ -91,6 +91,9 @@ export interface PyWebViewAPI {
   save_document(docId: number, title: string, data: any): Promise<SaveDocResponse>;
   reorder_tree_items(wsId: number, items: TreeOrderItem[]): Promise<boolean>;
   delete_document(docId: number): Promise<boolean>;
+  get_calendar_note(wsId: number, dateStr: string): Promise<any>;
+  save_calendar_note(wsId: number, dateStr: string, content: any): Promise<SaveDocResponse>;
+  get_calendar_notes_month(wsId: number, yearMonth: string): Promise<Record<string, boolean>>;
 }
 
 declare global {

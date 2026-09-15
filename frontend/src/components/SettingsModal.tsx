@@ -6,9 +6,11 @@ interface SettingsModalProps {
   isOpen: boolean;
   currentTheme: string;
   currentFont: string;
+  modulesState: Record<string, boolean>;
   api: PyWebViewAPI | null;
   onSelectTheme: (themeId: string) => void;
   onSelectFont: (fontName: string) => void;
+  onToggleModule: (moduleKey: string, enabled: boolean) => void;
   onClose: () => void;
 }
 
@@ -20,28 +22,21 @@ interface ThemeItem {
 }
 
 const THEMES: ThemeItem[] = [
-  // Новые коллекции из референсов
   { id: 'burgundy_olive', name: 'Burgundy & Olive', category: 'Винные и природные', color: '#570F1D' },
   { id: 'plum_lavender', name: 'Deep Plum & Lavender', category: 'Винные и природные', color: '#5E3A5C' },
   { id: 'sunset_mulberry', name: 'Sunset Mulberry', category: 'Винные и природные', color: '#8F3858' },
   { id: 'pastel_iris', name: 'Pastel Iris & Sky', category: 'Пастельные оттенки', color: '#838BCC' },
   { id: 'nordic_pastel', name: 'Nordic Pastel Slate', category: 'Пастельные оттенки', color: '#657166' },
-
-  // Классическая коллекция
   { id: 'emerald_green', name: 'Emerald Green', category: 'Классическая коллекция', color: '#284139' },
   { id: 'wasabi', name: 'Wasabi', category: 'Классическая коллекция', color: '#809076' },
   { id: 'creased_khaki', name: 'Creased Khaki', category: 'Классическая коллекция', color: '#F8E794' },
   { id: 'egyptian_earth', name: 'Egyptian Earth', category: 'Классическая коллекция', color: '#B86830' },
   { id: 'noir_de_vigne', name: 'Noir de Vigne', category: 'Классическая коллекция', color: '#111A19' },
-
-  // Сланцевые и пепельные
   { id: 'arsenic', name: 'Arsenic', category: 'Сланцевые и пепельные', color: '#344040' },
   { id: 'morning_blue', name: 'Morning Blue', category: 'Сланцевые и пепельные', color: '#889893' },
   { id: 'american_silver', name: 'American Silver', category: 'Сланцевые и пепельные', color: '#CFCFCD' },
   { id: 'liver_chestnut', name: 'Liver Chestnut', category: 'Сланцевые и пепельные', color: '#55453A' },
   { id: 'bistre', name: 'Bistre', category: 'Сланцевые и пепельные', color: '#362419' },
-
-  // Кофейные оттенки
   { id: 'oil', name: 'Oil', category: 'Кофейные оттенки', color: '#2D1E17' },
   { id: 'judge_gray', name: 'Judge Gray', category: 'Кофейные оттенки', color: '#523F31' },
   { id: 'roman_coffee', name: 'Roman Coffee', category: 'Кофейные оттенки', color: '#796254' },
@@ -59,9 +54,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   currentTheme,
   currentFont,
+  modulesState,
   api,
   onSelectTheme,
   onSelectFont,
+  onToggleModule,
   onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'modules' | 'themes' | 'fonts' | 'updates'>('themes');
@@ -110,56 +107,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="settings-layout">
-          {/* Левый сайдбар настроек */}
           <div className="settings-sidebar">
-            <button
-              className={`settings-tab-btn ${activeTab === 'modules' ? 'active' : ''}`}
-              onClick={() => setActiveTab('modules')}
-            >
-              Модули
-            </button>
-            <button
-              className={`settings-tab-btn ${activeTab === 'themes' ? 'active' : ''}`}
-              onClick={() => setActiveTab('themes')}
-            >
-              Темы оформления
-            </button>
-            <button
-              className={`settings-tab-btn ${activeTab === 'fonts' ? 'active' : ''}`}
-              onClick={() => setActiveTab('fonts')}
-            >
-              Шрифты
-            </button>
-            <button
-              className={`settings-tab-btn ${activeTab === 'updates' ? 'active' : ''}`}
-              onClick={() => setActiveTab('updates')}
-            >
-              Обновление
-            </button>
+            <button className={`settings-tab-btn ${activeTab === 'modules' ? 'active' : ''}`} onClick={() => setActiveTab('modules')}>Модули</button>
+            <button className={`settings-tab-btn ${activeTab === 'themes' ? 'active' : ''}`} onClick={() => setActiveTab('themes')}>Темы оформления</button>
+            <button className={`settings-tab-btn ${activeTab === 'fonts' ? 'active' : ''}`} onClick={() => setActiveTab('fonts')}>Шрифты</button>
+            <button className={`settings-tab-btn ${activeTab === 'updates' ? 'active' : ''}`} onClick={() => setActiveTab('updates')}>Обновление</button>
           </div>
 
-          {/* Правая часть контента */}
           <div className="settings-body">
             {activeTab === 'modules' && (
               <div className="settings-tab-pane active">
                 <div className="settings-section-title">УПРАВЛЕНИЕ МОДУЛЯМИ</div>
+                
                 <div className="module-card">
                   <div className="module-info">
                     <div className="module-header-line">
                       <span className="module-name">Заметки и документы</span>
                       <span className="module-badge core">Базовый</span>
                     </div>
-                    <div className="module-desc">Основной редактор документов с поддержкой форматирования и чек-листов.</div>
+                    <div className="module-desc">Основной редактор документов с форматированием.</div>
                   </div>
                 </div>
+
                 <div className="module-card">
                   <div className="module-info">
                     <div className="module-header-line">
                       <span className="module-name">Флипчарты (Edgeless Canvas)</span>
                       <span className="module-badge core">Базовый</span>
                     </div>
-                    <div className="module-desc">Интерактивный холст для визуализации связей, стикеров и рисования.</div>
+                    <div className="module-desc">Интерактивный холст для визуализации связей и стикеров.</div>
                   </div>
+                </div>
+
+                <div className="module-card">
+                  <div className="module-info">
+                    <div className="module-header-line">
+                      <span className="module-name">Календарь заметок</span>
+                      <span className="module-badge optional">Модуль</span>
+                    </div>
+                    <div className="module-desc">Ежедневный органайзер для записей по датам.</div>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={modulesState['module_calendar'] ?? true}
+                      onChange={e => onToggleModule('module_calendar', e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                  </label>
                 </div>
               </div>
             )}
@@ -171,11 +166,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {THEMES.map(t => {
                     const isSelected = currentTheme === t.id;
                     return (
-                      <div
-                        key={t.id}
-                        className={`theme-card ${isSelected ? 'selected' : ''}`}
-                        onClick={() => onSelectTheme(t.id)}
-                      >
+                      <div key={t.id} className={`theme-card ${isSelected ? 'selected' : ''}`} onClick={() => onSelectTheme(t.id)}>
                         <div className="theme-color-preview" style={{ backgroundColor: t.color }}></div>
                         <div className="theme-card-info">
                           <div className="theme-card-name">{t.name}</div>
@@ -199,16 +190,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         key={f.id}
                         onClick={() => onSelectFont(f.id)}
                         className={`module-card ${isSelected ? 'selected' : ''}`}
-                        style={{
-                          cursor: 'pointer',
-                          borderColor: isSelected ? 'var(--accent)' : 'var(--border-color)',
-                          backgroundColor: isSelected ? 'var(--item-active)' : 'var(--bg-body)'
-                        }}
+                        style={{ cursor: 'pointer', borderColor: isSelected ? 'var(--accent)' : 'var(--border-color)', backgroundColor: isSelected ? 'var(--item-active)' : 'var(--bg-body)' }}
                       >
                         <div>
-                          <div style={{ fontFamily: f.id, fontSize: 16, fontWeight: 700, color: 'var(--text-main)', marginBottom: 2 }}>
-                            {f.name} — Текст и заголовок
-                          </div>
+                          <div style={{ fontFamily: f.id, fontSize: 16, fontWeight: 700, color: 'var(--text-main)', marginBottom: 2 }}>{f.name}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.desc}</div>
                         </div>
                         {isSelected && <Check size={18} style={{ color: 'var(--accent)' }} />}
@@ -222,66 +207,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'updates' && (
               <div className="settings-tab-pane active">
                 <div className="settings-section-title">ОБНОВЛЕНИЕ РАДИАН</div>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 20px 0', lineHeight: 1.5 }}>
-                  Проверка доступных релизов на GitHub и обновление программы в один клик.
-                </p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 20px 0', lineHeight: 1.5 }}>Проверка доступных релизов на GitHub.</p>
 
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-                  <button
-                    className="btn-create-main"
-                    disabled={checking || updating}
-                    onClick={handleCheckUpdate}
-                    style={{ width: 'auto', padding: '8px 16px', display: 'inline-flex', gap: 8 }}
-                  >
+                  <button className="btn-create-main" disabled={checking || updating} onClick={handleCheckUpdate} style={{ width: 'auto', padding: '8px 16px', display: 'inline-flex', gap: 8 }}>
                     <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
                     <span>{checking ? 'Проверка...' : 'Проверить обновления'}</span>
                   </button>
-
-                  {statusMessage && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
-                      <CheckCircle size={16} />
-                      <span>{statusMessage}</span>
-                    </div>
-                  )}
+                  {statusMessage && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}><CheckCircle size={16} /><span>{statusMessage}</span></div>}
                 </div>
 
                 {updateResult?.has_update && (
-                  <div
-                    style={{
-                      padding: 16,
-                      borderRadius: 8,
-                      backgroundColor: 'var(--bg-body)',
-                      border: '1px solid var(--accent)'
-                    }}
-                  >
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 6 }}>
-                      Доступна новая версия Радиан v{updateResult.version}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, maxHeight: 120, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                      {updateResult.changelog}
-                    </div>
-
-                    <button
-                      className="btn-save"
-                      disabled={updating}
-                      onClick={handleInstallUpdate}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 18px'
-                      }}
-                    >
+                  <div style={{ padding: 16, borderRadius: 8, backgroundColor: 'var(--bg-body)', border: '1px solid var(--accent)' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 6 }}>Доступна новая версия v{updateResult.version}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, maxHeight: 120, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>{updateResult.changelog}</div>
+                    <button className="btn-save" disabled={updating} onClick={handleInstallUpdate} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px' }}>
                       <DownloadCloud size={16} />
-                      <span>{updating ? 'Скачивание и перезапуск...' : 'Обновить Радиан сейчас'}</span>
+                      <span>{updating ? 'Скачивание...' : 'Обновить сейчас'}</span>
                     </button>
-                  </div>
-                )}
-
-                {updateResult?.error && (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 13, color: '#e06c75' }}>
-                    <AlertCircle size={16} />
-                    <span>Ошибка: {updateResult.error}</span>
                   </div>
                 )}
               </div>
