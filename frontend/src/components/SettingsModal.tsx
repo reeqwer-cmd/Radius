@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { RefreshCw, CheckCircle, AlertCircle, DownloadCloud, Check } from 'lucide-react';
+import { RefreshCw, CheckCircle, DownloadCloud, Check, Sun, Moon } from 'lucide-react';
 import { PyWebViewAPI, UpdateInfo } from '../types/api';
 
 interface SettingsModalProps {
   isOpen: boolean;
   currentTheme: string;
   currentFont: string;
+  themeMode: 'light' | 'dark';
   modulesState: Record<string, boolean>;
   api: PyWebViewAPI | null;
   onSelectTheme: (themeId: string) => void;
   onSelectFont: (fontName: string) => void;
+  onSelectThemeMode: (mode: 'light' | 'dark') => void;
   onToggleModule: (moduleKey: string, enabled: boolean) => void;
   onClose: () => void;
 }
@@ -22,25 +24,17 @@ interface ThemeItem {
 }
 
 const THEMES: ThemeItem[] = [
-  { id: 'burgundy_olive', name: 'Burgundy & Olive', category: 'Винные и природные', color: '#570F1D' },
-  { id: 'plum_lavender', name: 'Deep Plum & Lavender', category: 'Винные и природные', color: '#5E3A5C' },
-  { id: 'sunset_mulberry', name: 'Sunset Mulberry', category: 'Винные и природные', color: '#8F3858' },
-  { id: 'pastel_iris', name: 'Pastel Iris & Sky', category: 'Пастельные оттенки', color: '#838BCC' },
-  { id: 'nordic_pastel', name: 'Nordic Pastel Slate', category: 'Пастельные оттенки', color: '#657166' },
-  { id: 'emerald_green', name: 'Emerald Green', category: 'Классическая коллекция', color: '#284139' },
-  { id: 'wasabi', name: 'Wasabi', category: 'Классическая коллекция', color: '#809076' },
-  { id: 'creased_khaki', name: 'Creased Khaki', category: 'Классическая коллекция', color: '#F8E794' },
-  { id: 'egyptian_earth', name: 'Egyptian Earth', category: 'Классическая коллекция', color: '#B86830' },
-  { id: 'noir_de_vigne', name: 'Noir de Vigne', category: 'Классическая коллекция', color: '#111A19' },
+  { id: 'american_silver', name: 'American Silver', category: 'Сланцевые и пепельные', color: '#CFCFCD' },
   { id: 'arsenic', name: 'Arsenic', category: 'Сланцевые и пепельные', color: '#344040' },
   { id: 'morning_blue', name: 'Morning Blue', category: 'Сланцевые и пепельные', color: '#889893' },
-  { id: 'american_silver', name: 'American Silver', category: 'Сланцевые и пепельные', color: '#CFCFCD' },
-  { id: 'liver_chestnut', name: 'Liver Chestnut', category: 'Сланцевые и пепельные', color: '#55453A' },
-  { id: 'bistre', name: 'Bistre', category: 'Сланцевые и пепельные', color: '#362419' },
-  { id: 'oil', name: 'Oil', category: 'Кофейные оттенки', color: '#2D1E17' },
+  { id: 'noir_de_vigne', name: 'Noir de Vigne', category: 'Классическая коллекция', color: '#111A19' },
   { id: 'judge_gray', name: 'Judge Gray', category: 'Кофейные оттенки', color: '#523F31' },
   { id: 'roman_coffee', name: 'Roman Coffee', category: 'Кофейные оттенки', color: '#796254' },
-  { id: 'pale_oyster', name: 'Pale Oyster', category: 'Кофейные оттенки', color: '#9D8A7C' }
+  { id: 'stone_hearth', name: 'Stone Hearth & Brandy', category: 'Природные и минеральные', color: '#DCB789' },
+  { id: 'spiced_wine', name: 'Cowhide & Spiced Wine', category: 'Кофейные и винные', color: '#743014' },
+  { id: 'matcha_eclipse', name: 'Matcha & Eclipse', category: 'Чайные и лесные', color: '#677D6A' },
+  { id: 'inkwell_brulee', name: 'Inkwell & Crème Brûlée', category: 'Сланцевые и пепельные', color: '#A27B5B' },
+  { id: 'river_amber', name: 'River Styx & Amber', category: 'Тёмные и янтарные', color: '#CA9C68' }
 ];
 
 const FONTS = [
@@ -54,10 +48,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   currentTheme,
   currentFont,
+  themeMode,
   modulesState,
   api,
   onSelectTheme,
   onSelectFont,
+  onSelectThemeMode,
   onToggleModule,
   onClose
 }) => {
@@ -108,13 +104,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="settings-layout">
           <div className="settings-sidebar">
-            <button className={`settings-tab-btn ${activeTab === 'modules' ? 'active' : ''}`} onClick={() => setActiveTab('modules')}>Модули</button>
             <button className={`settings-tab-btn ${activeTab === 'themes' ? 'active' : ''}`} onClick={() => setActiveTab('themes')}>Темы оформления</button>
+            <button className={`settings-tab-btn ${activeTab === 'modules' ? 'active' : ''}`} onClick={() => setActiveTab('modules')}>Модули</button>
             <button className={`settings-tab-btn ${activeTab === 'fonts' ? 'active' : ''}`} onClick={() => setActiveTab('fonts')}>Шрифты</button>
             <button className={`settings-tab-btn ${activeTab === 'updates' ? 'active' : ''}`} onClick={() => setActiveTab('updates')}>Обновление</button>
           </div>
 
           <div className="settings-body">
+            {activeTab === 'themes' && (
+              <div className="settings-tab-pane active">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div className="settings-section-title" style={{ margin: 0 }}>РЕЖИМ И ПАЛИТРА</div>
+
+                  {/* Переключатель День / Ночь */}
+                  <div style={{ display: 'flex', gap: 6, background: 'var(--bg-body)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectThemeMode('light')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: themeMode === 'light' ? 'var(--accent)' : 'transparent',
+                        color: themeMode === 'light' ? 'var(--accent-text)' : 'var(--text-muted)'
+                      }}
+                    >
+                      <Sun size={13} /> День
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectThemeMode('dark')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: themeMode === 'dark' ? 'var(--accent)' : 'transparent',
+                        color: themeMode === 'dark' ? 'var(--accent-text)' : 'var(--text-muted)'
+                      }}
+                    >
+                      <Moon size={13} /> Ночь
+                    </button>
+                  </div>
+                </div>
+
+                <div className="themes-grid">
+                  {THEMES.map(t => {
+                    const isSelected = currentTheme === t.id;
+                    return (
+                      <div key={t.id} className={`theme-card ${isSelected ? 'selected' : ''}`} onClick={() => onSelectTheme(t.id)}>
+                        <div className="theme-color-preview" style={{ backgroundColor: t.color }}></div>
+                        <div className="theme-card-info">
+                          <div className="theme-card-name">{t.name}</div>
+                          <div className="theme-card-group">{t.category}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'modules' && (
               <div className="settings-tab-pane active">
                 <div className="settings-section-title">УПРАВЛЕНИЕ МОДУЛЯМИ</div>
@@ -173,26 +234,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     <span className="slider"></span>
                   </label>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'themes' && (
-              <div className="settings-tab-pane active">
-                <div className="settings-section-title">ВЫБЕРИТЕ ЦВЕТОВУЮ ПАЛИТРУ</div>
-                <div className="themes-grid">
-                  {THEMES.map(t => {
-                    const isSelected = currentTheme === t.id;
-                    return (
-                      <div key={t.id} className={`theme-card ${isSelected ? 'selected' : ''}`} onClick={() => onSelectTheme(t.id)}>
-                        <div className="theme-color-preview" style={{ backgroundColor: t.color }}></div>
-                        <div className="theme-card-info">
-                          <div className="theme-card-name">{t.name}</div>
-                          <div className="theme-card-group">{t.category}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             )}

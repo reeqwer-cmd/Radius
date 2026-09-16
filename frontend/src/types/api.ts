@@ -84,6 +84,8 @@ export interface KanbanBoardData {
 export interface PyWebViewAPI {
   get_theme(): Promise<string>;
   set_theme(themeName: string): Promise<boolean>;
+  get_theme_mode(): Promise<string>;
+  set_theme_mode(mode: string): Promise<boolean>;
   get_font(): Promise<string>;
   set_font(fontName: string): Promise<boolean>;
   get_modules_state(): Promise<Record<string, boolean>>;

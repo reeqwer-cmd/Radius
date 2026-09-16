@@ -85,7 +85,8 @@ def init_db():
             value TEXT NOT NULL
         )
     """)
-    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'emerald_green')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'american_silver')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('theme_mode', 'light')")
 
     default_modules = [
         ("module_word_counter", "1"),

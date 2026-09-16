@@ -18,7 +18,11 @@ export default function App() {
   const [currentDocId, setCurrentDocId] = useState<number | null>(null);
   const [currentDoc, setCurrentDoc] = useState<LoadedDocument | null>(null);
   const [docTitle, setDocTitle] = useState<string>('');
-  const [theme, setTheme] = useState<string>('emerald_green');
+  
+  // Тема оформления и режим День / Ночь
+  const [theme, setTheme] = useState<string>('american_silver');
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
+
   const [font, setFont] = useState<string>('Inter');
   const [modulesState, setModulesState] = useState<Record<string, boolean>>({});
   const [activeView, setActiveView] = useState<'editor' | 'calendar' | 'project_kanban'>('editor');
@@ -43,8 +47,14 @@ export default function App() {
 
     (async () => {
       const savedTheme = await api.get_theme();
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
+      const finalTheme = savedTheme || 'american_silver';
+      setTheme(finalTheme);
+      document.documentElement.setAttribute('data-theme', finalTheme);
+
+      const savedMode = await api.get_theme_mode();
+      const finalMode = (savedMode === 'dark' || savedMode === 'light') ? savedMode : 'light';
+      setThemeMode(finalMode);
+      document.documentElement.setAttribute('data-mode', finalMode);
 
       const savedFont = await api.get_font();
       setFont(savedFont || 'Inter');
@@ -161,6 +171,17 @@ export default function App() {
     if (api) await api.set_theme(themeId);
   };
 
+  const handleApplyThemeMode = async (mode: 'light' | 'dark') => {
+    setThemeMode(mode);
+    document.documentElement.setAttribute('data-mode', mode);
+    if (api) await api.set_theme_mode(mode);
+  };
+
+  const handleToggleThemeMode = async () => {
+    const nextMode = themeMode === 'light' ? 'dark' : 'light';
+    await handleApplyThemeMode(nextMode);
+  };
+
   const handleApplyFont = async (fontName: string) => {
     setFont(fontName);
     document.documentElement.style.setProperty('--app-font', fontName);
@@ -252,6 +273,8 @@ export default function App() {
         currentDocId={currentDocId}
         activeView={activeView}
         modulesState={modulesState}
+        themeMode={themeMode}
+        onToggleThemeMode={handleToggleThemeMode}
         onSelectDoc={loadDoc}
         onSelectCalendar={() => setActiveView('calendar')}
         onSelectProjectKanban={() => { if (workspaceId) loadProjectKanban(workspaceId); }}
@@ -327,10 +350,12 @@ export default function App() {
         isOpen={isSettingsOpen}
         currentTheme={theme}
         currentFont={font}
+        themeMode={themeMode}
         modulesState={modulesState}
         api={api}
         onSelectTheme={handleApplyTheme}
         onSelectFont={handleApplyFont}
+        onSelectThemeMode={handleApplyThemeMode}
         onToggleModule={handleToggleModule}
         onClose={() => setIsSettingsOpen(false)}
       />

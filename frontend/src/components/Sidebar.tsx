@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Folder, FolderOpen, FileText, Layout, GripVertical, Settings, 
   ChevronDown, ChevronRight, Download, Upload, MoreVertical, Plus, Edit2, X, Presentation,
-  Check, Trash2, Calendar as CalendarIcon, Columns3
+  Check, Trash2, Calendar as CalendarIcon, Columns3, Sun, Moon
 } from 'lucide-react';
 import { WorkspaceTree, DocItem, DocType, WorkspaceItem, FolderItem, TreeOrderItem } from '../types/api';
 
@@ -14,6 +14,8 @@ interface SidebarProps {
   currentDocId: number | null;
   activeView: 'editor' | 'calendar' | 'project_kanban';
   modulesState: Record<string, boolean>;
+  themeMode: 'light' | 'dark';
+  onToggleThemeMode: () => void;
   onSelectDoc: (id: number) => void;
   onSelectCalendar: () => void;
   onSelectProjectKanban: () => void;
@@ -44,6 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentDocId,
   activeView,
   modulesState,
+  themeMode,
+  onToggleThemeMode,
   onSelectDoc,
   onSelectCalendar,
   onSelectProjectKanban,
@@ -264,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="brand-title">РАДИАН</span>
         </div>
 
-        {/* Блок выбора пространства */}
+        {/* Блок пространства */}
         <div 
           className="workspace-card"
           ref={wsCardRef}
@@ -351,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 background: 'var(--bg-sidebar)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                 maxHeight: 240,
                 overflowY: 'auto',
                 zIndex: 110,
@@ -435,7 +439,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 background: 'var(--bg-sidebar)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                 minWidth: 190,
                 zIndex: 110,
                 padding: '4px 0',
@@ -547,7 +551,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Заголовок документов с кнопкой добавления */}
+        {/* Заголовок документов */}
         <div
           ref={createMenuRef}
           style={{
@@ -593,7 +597,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 background: 'var(--bg-sidebar)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                 minWidth: 170,
                 zIndex: 100,
                 padding: '4px 0',
@@ -690,7 +694,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* ЕДИНЫЙ ОБЩИЙ СПИСОК ПАПОК И КОРНЕВЫХ ДОКУМЕНТОВ */}
+        {/* Дерево элементов */}
         <div 
           id="tree-container"
           onDragOver={e => e.preventDefault()}
@@ -853,10 +857,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
+        {/* Футер сайдбара: Настройки + Быстрый переключатель День/Ночь */}
         <div className="sidebar-footer">
           <button className="btn-settings" onClick={onOpenSettings}>
             <Settings size={14} />
-            Настройки
+            <span>Настройки</span>
+          </button>
+          <button 
+            className="btn-theme-mode" 
+            onClick={onToggleThemeMode} 
+            title={themeMode === 'light' ? 'Переключить в режим Ночь (Тёмный)' : 'Переключить в режим День (Светлый)'}
+          >
+            {themeMode === 'light' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
         </div>
       </div>

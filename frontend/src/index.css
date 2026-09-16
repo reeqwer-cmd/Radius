@@ -5,153 +5,378 @@
     --app-font: 'Inter', 'Cactus Classical Serif', 'Merriweather', Georgia, serif;
 }
 
-/* --- ПАЛИТРЫ ТЕМ --- */
-:root[data-theme="emerald_green"] {
-    --bg-body: #284139; --bg-sidebar: #1C2E28; --bg-card: #1E332D;
-    --border-color: #38594E; --text-main: #FFFFFF; --text-muted: #A3B9B0;
-    --accent: #F8E794; --accent-hover: #E3D17B; --accent-text: #111A19;
-    --item-active: #2C4B41; --item-hover: #233B33; --popover-bg: #1B2E28;
-    --bg-canvas: #15221e;
+/* ==========================================================================
+   11 ИЗБРАННЫХ ТЕМ (ДЕНЬ / НОЧЬ)
+   ========================================================================== */
+
+/* 1. American Silver */
+/* НОЧЬ (Тёмная) */
+:root[data-theme="american_silver"][data-mode="dark"] {
+    --bg-body: #191b1c;
+    --bg-sidebar: #131415;
+    --bg-card: #25282a;
+    --border-color: rgba(207, 207, 205, 0.24);
+    --text-main: #f0f1f2;
+    --text-muted: #9a9da1;
+    --accent: #cfcfcd;
+    --accent-hover: #e2e2e0;
+    --accent-text: #18191a;
+    --item-active: rgba(207, 207, 205, 0.18);
+    --item-hover: rgba(207, 207, 205, 0.1);
+    --popover-bg: #1e2022;
+    --bg-canvas: #131415;
 }
-:root[data-theme="wasabi"] {
-    --bg-body: #809076; --bg-sidebar: #6B7A62; --bg-card: #F4F6F2;
-    --border-color: #5D6B55; --text-main: #111A19; --text-muted: #4F5A47;
-    --accent: #284139; --accent-hover: #1C2E28; --accent-text: #FFFFFF;
-    --item-active: #74836A; --item-hover: #78876F; --popover-bg: #FFFFFF;
-    --bg-canvas: #4b5545;
-}
-:root[data-theme="creased_khaki"] {
-    --bg-body: #F8E794; --bg-sidebar: #E9D77F; --bg-card: #FFFFFF;
-    --border-color: #D6C265; --text-main: #111A19; --text-muted: #6B7258;
-    --accent: #B86830; --accent-hover: #A05724; --accent-text: #FFFFFF;
-    --item-active: #DEC96C; --item-hover: #E4D276; --popover-bg: #FAF7EA;
-    --bg-canvas: #c4b564;
-}
-:root[data-theme="egyptian_earth"] {
-    --bg-body: #B86830; --bg-sidebar: #985221; --bg-card: #804217;
-    --border-color: #CF7E46; --text-main: #FFFFFF; --text-muted: #F8D5BE;
-    --accent: #F8E794; --accent-hover: #E8D36D; --accent-text: #111A19;
-    --item-active: #A45B28; --item-hover: #904E20; --popover-bg: #743B14;
-    --bg-canvas: #663311;
-}
-:root[data-theme="noir_de_vigne"] {
-    --bg-body: #111A19; --bg-sidebar: #0B0E0E; --bg-card: #182321;
-    --border-color: #243431; --text-main: #FFFFFF; --text-muted: #809076;
-    --accent: #B86830; --accent-hover: #CF783C; --accent-text: #FFFFFF;
-    --item-active: #21302D; --item-hover: #192523; --popover-bg: #1A2725;
-    --bg-canvas: #090e0e;
-}
-:root[data-theme="arsenic"] {
-    --bg-body: #344040; --bg-sidebar: #242D2D; --bg-card: #2B3535;
-    --border-color: #465555; --text-main: #FFFFFF; --text-muted: #889893;
-    --accent: #CFCFCD; --accent-hover: #E5E5E3; --accent-text: #242D2D;
-    --item-active: #3C4A4A; --item-hover: #303B3B; --popover-bg: #273030;
-    --bg-canvas: #1b2222;
-}
-:root[data-theme="morning_blue"] {
-    --bg-body: #889893; --bg-sidebar: #71817C; --bg-card: #FAFBFA;
-    --border-color: #63726D; --text-main: #1D2524; --text-muted: #4A5652;
-    --accent: #344040; --accent-hover: #242D2D; --accent-text: #FFFFFF;
-    --item-active: #7A8B86; --item-hover: #7E8F8A; --popover-bg: #FFFFFF;
-    --bg-canvas: #4f5a57;
-}
-:root[data-theme="american_silver"] {
-    --bg-body: #CFCFCD; --bg-sidebar: #BFBFBD; --bg-card: #FFFFFF;
-    --border-color: #ABABAA; --text-main: #1A1E1D; --text-muted: #666B6A;
-    --accent: #344040; --accent-hover: #455252; --accent-text: #FFFFFF;
-    --item-active: #B5B5B3; --item-hover: #B9B9B7; --popover-bg: #FFFFFF;
+/* ДЕНЬ (Светлая - оригинальная любимая классика) */
+:root[data-theme="american_silver"],
+:root[data-theme="american_silver"][data-mode="light"] {
+    --bg-body: #CFCFCD;
+    --bg-sidebar: #BFBFBD;
+    --bg-card: #FFFFFF;
+    --border-color: #ABABAA;
+    --text-main: #1A1E1D;
+    --text-muted: #666B6A;
+    --accent: #344040;
+    --accent-hover: #455252;
+    --accent-text: #FFFFFF;
+    --item-active: #B5B5B3;
+    --item-hover: #B9B9B7;
+    --popover-bg: #FFFFFF;
     --bg-canvas: #8c8c8a;
 }
-:root[data-theme="liver_chestnut"] {
-    --bg-body: #55453A; --bg-sidebar: #42352C; --bg-card: #3A2E26;
-    --border-color: #6D594C; --text-main: #FFFFFF; --text-muted: #D1BEB2;
-    --accent: #CFCFCD; --accent-hover: #E4E4E2; --accent-text: #3A2E26;
-    --item-active: #4B3D33; --item-hover: #44372E; --popover-bg: #352A23;
-    --bg-canvas: #2a211b;
+
+/* 2. Arsenic */
+:root[data-theme="arsenic"],
+:root[data-theme="arsenic"][data-mode="dark"] {
+    --bg-body: #171d1d;
+    --bg-sidebar: #111616;
+    --bg-card: #232b2b;
+    --border-color: rgba(96, 128, 128, 0.28);
+    --text-main: #e2e8e8;
+    --text-muted: #829696;
+    --accent: #5e8282;
+    --accent-hover: #719b9b;
+    --accent-text: #ffffff;
+    --item-active: rgba(94, 130, 130, 0.22);
+    --item-hover: rgba(94, 130, 130, 0.12);
+    --popover-bg: #1b2222;
+    --bg-canvas: #111616;
 }
-:root[data-theme="bistre"] {
-    --bg-body: #362419; --bg-sidebar: #261911; --bg-card: #2B1C13;
-    --border-color: #4C3425; --text-main: #FFFFFF; --text-muted: #B59B8B;
-    --accent: #889893; --accent-hover: #9EB0AB; --accent-text: #1E120B;
-    --item-active: #3D291C; --item-hover: #322117; --popover-bg: #241710;
-    --bg-canvas: #170d07;
+:root[data-theme="arsenic"][data-mode="light"] {
+    --bg-body: #e5ecec;
+    --bg-sidebar: #d4dede;
+    --bg-card: #ffffff;
+    --border-color: #b0bfbf;
+    --text-main: #1a2222;
+    --text-muted: #5e7070;
+    --accent: #344040;
+    --accent-hover: #465555;
+    --accent-text: #ffffff;
+    --item-active: #c7d4d4;
+    --item-hover: #cedada;
+    --popover-bg: #ffffff;
+    --bg-canvas: #a2b2b2;
 }
-:root[data-theme="oil"] {
-    --bg-body: #2D1E17; --bg-sidebar: #1F140F; --bg-card: #241812;
-    --border-color: #453026; --text-main: #FFFFFF; --text-muted: #9D8A7C;
-    --accent: #9D8A7C; --accent-hover: #B5A192; --accent-text: #1F140F;
-    --item-active: #36251D; --item-hover: #2D1E17; --popover-bg: #1F1510;
-    --bg-canvas: #120a06;
+
+/* 3. Morning Blue */
+:root[data-theme="morning_blue"],
+:root[data-theme="morning_blue"][data-mode="dark"] {
+    --bg-body: #161c1b;
+    --bg-sidebar: #111615;
+    --bg-card: #222c2a;
+    --border-color: rgba(136, 152, 147, 0.28);
+    --text-main: #e7eceb;
+    --text-muted: #8b9b96;
+    --accent: #889893;
+    --accent-hover: #9eada8;
+    --accent-text: #101514;
+    --item-active: rgba(136, 152, 147, 0.22);
+    --item-hover: rgba(136, 152, 147, 0.12);
+    --popover-bg: #1b2321;
+    --bg-canvas: #111615;
 }
-:root[data-theme="judge_gray"] {
-    --bg-body: #523F31; --bg-sidebar: #403024; --bg-card: #372A20;
-    --border-color: #6B5443; --text-main: #FFFFFF; --text-muted: #CFC1B6;
-    --accent: #9D8A7C; --accent-hover: #B4A293; --accent-text: #241812;
-    --item-active: #48372B; --item-hover: #423227; --popover-bg: #31251C;
+:root[data-theme="morning_blue"][data-mode="light"] {
+    --bg-body: #889893;
+    --bg-sidebar: #71817C;
+    --bg-card: #FAFBFA;
+    --border-color: #63726D;
+    --text-main: #1D2524;
+    --text-muted: #4A5652;
+    --accent: #344040;
+    --accent-hover: #242D2D;
+    --accent-text: #FFFFFF;
+    --item-active: #7A8B86;
+    --item-hover: #7E8F8A;
+    --popover-bg: #FFFFFF;
+    --bg-canvas: #4f5a57;
+}
+
+/* 4. Noir de Vigne */
+:root[data-theme="noir_de_vigne"],
+:root[data-theme="noir_de_vigne"][data-mode="dark"] {
+    --bg-body: #101514;
+    --bg-sidebar: #0b0e0d;
+    --bg-card: #182120;
+    --border-color: rgba(255, 255, 255, 0.14);
+    --text-main: #e6edec;
+    --text-muted: #7e8b8a;
+    --accent: #4e706b;
+    --accent-hover: #608882;
+    --accent-text: #ffffff;
+    --item-active: rgba(78, 112, 107, 0.22);
+    --item-hover: rgba(78, 112, 107, 0.12);
+    --popover-bg: #141b1a;
+    --bg-canvas: #0b0e0d;
+}
+:root[data-theme="noir_de_vigne"][data-mode="light"] {
+    --bg-body: #e4ebe9;
+    --bg-sidebar: #d3dfdc;
+    --bg-card: #ffffff;
+    --border-color: #a8bcba;
+    --text-main: #101615;
+    --text-muted: #566967;
+    --accent: #213230;
+    --accent-hover: #2c4240;
+    --accent-text: #ffffff;
+    --item-active: #c5d4d1;
+    --item-hover: #ccdad8;
+    --popover-bg: #ffffff;
+    --bg-canvas: #98adab;
+}
+
+/* 5. Judge Gray */
+:root[data-theme="judge_gray"],
+:root[data-theme="judge_gray"][data-mode="dark"] {
+    --bg-body: #1b1612;
+    --bg-sidebar: #130f0c;
+    --bg-card: #29201a;
+    --border-color: rgba(166, 131, 105, 0.24);
+    --text-main: #efe9e4;
+    --text-muted: #a18e80;
+    --accent: #a68369;
+    --accent-hover: #ba957a;
+    --accent-text: #16120e;
+    --item-active: rgba(166, 131, 105, 0.18);
+    --item-hover: rgba(166, 131, 105, 0.1);
+    --popover-bg: #221a15;
+    --bg-canvas: #130f0c;
+}
+:root[data-theme="judge_gray"][data-mode="light"] {
+    --bg-body: #523F31;
+    --bg-sidebar: #403024;
+    --bg-card: #ffffff;
+    --border-color: #6B5443;
+    --text-main: #241812;
+    --text-muted: #6B5443;
+    --accent: #523F31;
+    --accent-hover: #403024;
+    --accent-text: #ffffff;
+    --item-active: #48372B;
+    --item-hover: #423227;
+    --popover-bg: #FFFFFF;
     --bg-canvas: #241a13;
 }
-:root[data-theme="roman_coffee"] {
-    --bg-body: #796254; --bg-sidebar: #655144; --bg-card: #FDFBFA;
-    --border-color: #554439; --text-main: #201813; --text-muted: #4B3B31;
-    --accent: #2D1E17; --accent-hover: #1F140F; --accent-text: #FFFFFF;
-    --item-active: #6E594C; --item-hover: #735D50; --popover-bg: #FFFFFF;
+
+/* 6. Roman Coffee */
+:root[data-theme="roman_coffee"],
+:root[data-theme="roman_coffee"][data-mode="dark"] {
+    --bg-body: #1e1714;
+    --bg-sidebar: #15100d;
+    --bg-card: #2d221d;
+    --border-color: rgba(179, 142, 120, 0.25);
+    --text-main: #f2ece7;
+    --text-muted: #a79488;
+    --accent: #b38e78;
+    --accent-hover: #c6a28d;
+    --accent-text: #1a1310;
+    --item-active: rgba(179, 142, 120, 0.18);
+    --item-hover: rgba(179, 142, 120, 0.1);
+    --popover-bg: #251c17;
+    --bg-canvas: #15100d;
+}
+:root[data-theme="roman_coffee"][data-mode="light"] {
+    --bg-body: #796254;
+    --bg-sidebar: #655144;
+    --bg-card: #FDFBFA;
+    --border-color: #554439;
+    --text-main: #201813;
+    --text-muted: #4B3B31;
+    --accent: #2D1E17;
+    --accent-hover: #1F140F;
+    --accent-text: #FFFFFF;
+    --item-active: #6E594C;
+    --item-hover: #735D50;
+    --popover-bg: #FFFFFF;
     --bg-canvas: #42342b;
 }
-:root[data-theme="pale_oyster"] {
-    --bg-body: #9D8A7C; --bg-sidebar: #887669; --bg-card: #FFFFFF;
-    --border-color: #79685C; --text-main: #241B15; --text-muted: #53453C;
-    --accent: #523F31; --accent-hover: #3C2D22; --accent-text: #FFFFFF;
-    --item-active: #917F72; --item-hover: #958375; --popover-bg: #FFFFFF;
-    --bg-canvas: #5c4e44;
+
+/* 7. Stone Hearth & Brandy */
+:root[data-theme="stone_hearth"],
+:root[data-theme="stone_hearth"][data-mode="dark"] {
+    --bg-body: #1d1e1e;
+    --bg-sidebar: #151616;
+    --bg-card: #282a29;
+    --border-color: rgba(220, 183, 137, 0.25);
+    --text-main: #f5efe6;
+    --text-muted: #96846a;
+    --accent: #dcb789;
+    --accent-hover: #e8c89f;
+    --accent-text: #201b14;
+    --item-active: rgba(220, 183, 137, 0.18);
+    --item-hover: rgba(220, 183, 137, 0.1);
+    --popover-bg: #222423;
+    --bg-canvas: #151616;
+}
+:root[data-theme="stone_hearth"][data-mode="light"] {
+    --bg-body: #ece5dc;
+    --bg-sidebar: #ded5c8;
+    --bg-card: #ffffff;
+    --border-color: #beaf9b;
+    --text-main: #221d17;
+    --text-muted: #6e604f;
+    --accent: #8b683e;
+    --accent-hover: #a17949;
+    --accent-text: #ffffff;
+    --item-active: #d1c5b4;
+    --item-hover: #d8cdbe;
+    --popover-bg: #ffffff;
+    --bg-canvas: #b09e89;
 }
 
-/* --- НОВЫЕ ТЕМЫ ИЗ РЕФЕРЕНСОВ --- */
-
-/* 1. Burgundy & Olive */
-:root[data-theme="burgundy_olive"] {
-    --bg-body: #340A0E; --bg-sidebar: #111506; --bg-card: #570F1D;
-    --border-color: #6F2B34; --text-main: #F4EBE8; --text-muted: #81815D;
-    --accent: #81815D; --accent-hover: #9ca074; --accent-text: #111506;
-    --item-active: #323522; --item-hover: #232717; --popover-bg: #28080B;
-    --bg-canvas: #1B0507;
+/* 8. Cowhide & Spiced Wine */
+:root[data-theme="spiced_wine"],
+:root[data-theme="spiced_wine"][data-mode="dark"] {
+    --bg-body: #1b120b;
+    --bg-sidebar: #120c06;
+    --bg-card: #2b1b11;
+    --border-color: rgba(232, 209, 167, 0.24);
+    --text-main: #f7f0e3;
+    --text-muted: #9d9167;
+    --accent: #e8d1a7;
+    --accent-hover: #f3dfbc;
+    --accent-text: #1c1108;
+    --item-active: rgba(232, 209, 167, 0.16);
+    --item-hover: rgba(232, 209, 167, 0.1);
+    --popover-bg: #23160e;
+    --bg-canvas: #120c06;
+}
+:root[data-theme="spiced_wine"][data-mode="light"] {
+    --bg-body: #f1e9de;
+    --bg-sidebar: #e4d7c6;
+    --bg-card: #ffffff;
+    --border-color: #c9b49b;
+    --text-main: #24160e;
+    --text-muted: #743014;
+    --accent: #743014;
+    --accent-hover: #8f3c1a;
+    --accent-text: #ffffff;
+    --item-active: #d9c8b3;
+    --item-hover: #e0d0bd;
+    --popover-bg: #ffffff;
+    --bg-canvas: #b4987a;
 }
 
-/* 2. Deep Plum & Lavender */
-:root[data-theme="plum_lavender"] {
-    --bg-body: #0B0E1A; --bg-sidebar: #00030E; --bg-card: #2C1B2F;
-    --border-color: #5E3A5C; --text-main: #F3E9EC; --text-muted: #B47A9A;
-    --accent: #B47A9A; --accent-hover: #cf92b5; --accent-text: #00030E;
-    --item-active: #3F2342; --item-hover: #2F1732; --popover-bg: #1B1220;
-    --bg-canvas: #05070D;
+/* 9. Matcha & Eclipse */
+:root[data-theme="matcha_eclipse"],
+:root[data-theme="matcha_eclipse"][data-mode="dark"] {
+    --bg-body: #132020;
+    --bg-sidebar: #0d1717;
+    --bg-card: #1c2e2e;
+    --border-color: rgba(214, 189, 152, 0.25);
+    --text-main: #f4efe6;
+    --text-muted: #8ea391;
+    --accent: #d6bd98;
+    --accent-hover: #e2ceb0;
+    --accent-text: #102222;
+    --item-active: rgba(214, 189, 152, 0.18);
+    --item-hover: rgba(214, 189, 152, 0.1);
+    --popover-bg: #162626;
+    --bg-canvas: #0d1717;
+}
+:root[data-theme="matcha_eclipse"][data-mode="light"] {
+    --bg-body: #e3ebe5;
+    --bg-sidebar: #d1ded4;
+    --bg-card: #ffffff;
+    --border-color: #a4beaa;
+    --text-main: #112015;
+    --text-muted: #4e6b54;
+    --accent: #2e4a36;
+    --accent-hover: #3d5e46;
+    --accent-text: #ffffff;
+    --item-active: #c3d4c7;
+    --item-hover: #cad9ce;
+    --popover-bg: #ffffff;
+    --bg-canvas: #93ad9a;
 }
 
-/* 3. Pastel Iris & Sky */
-:root[data-theme="pastel_iris"] {
-    --bg-body: #B8AEE3; --bg-sidebar: #838BCC; --bg-card: #FEFDF9;
-    --border-color: #A4C6E9; --text-main: #2A3158; --text-muted: #626C99;
-    --accent: #747EC7; --accent-hover: #5F6AB0; --accent-text: #FFFFFF;
-    --item-active: #98A1DE; --item-hover: #8D97D6; --popover-bg: #FFFFFF;
-    --bg-canvas: #7079B8;
+/* 10. Inkwell & Crème Brûlée */
+:root[data-theme="inkwell_brulee"],
+:root[data-theme="inkwell_brulee"][data-mode="dark"] {
+    --bg-body: #181f21;
+    --bg-sidebar: #111617;
+    --bg-card: #232c2e;
+    --border-color: rgba(162, 123, 91, 0.28);
+    --text-main: #ede9df;
+    --text-muted: #8e9fa0;
+    --accent: #a27b5b;
+    --accent-hover: #b88e6e;
+    --accent-text: #ffffff;
+    --item-active: rgba(162, 123, 91, 0.2);
+    --item-hover: rgba(162, 123, 91, 0.12);
+    --popover-bg: #1c2426;
+    --bg-canvas: #111617;
+}
+:root[data-theme="inkwell_brulee"][data-mode="light"] {
+    --bg-body: #ebe7de;
+    --bg-sidebar: #ded8cb;
+    --bg-card: #ffffff;
+    --border-color: #bfb29d;
+    --text-main: #182022;
+    --text-muted: #6e5540;
+    --accent: #875c39;
+    --accent-hover: #9c6c44;
+    --accent-text: #ffffff;
+    --item-active: #d1c8b8;
+    --item-hover: #d8d0c2;
+    --popover-bg: #ffffff;
+    --bg-canvas: #aba08d;
 }
 
-/* 4. Sunset Mulberry & Peach */
-:root[data-theme="sunset_mulberry"] {
-    --bg-body: #562747; --bg-sidebar: #401B34; --bg-card: #8F3858;
-    --border-color: #AD4161; --text-main: #FFF4EE; --text-muted: #FF9F9A;
-    --accent: #FFC59E; --accent-hover: #FFD4B8; --accent-text: #562747;
-    --item-active: #6E2D50; --item-hover: #5A2241; --popover-bg: #4A1E3C;
-    --bg-canvas: #331329;
+/* 11. River Styx & Amber */
+:root[data-theme="river_amber"],
+:root[data-theme="river_amber"][data-mode="dark"] {
+    --bg-body: #13191f;
+    --bg-sidebar: #0d1115;
+    --bg-card: #1d252e;
+    --border-color: rgba(202, 156, 104, 0.26);
+    --text-main: #f4efea;
+    --text-muted: #9a8b7a;
+    --accent: #ca9c68;
+    --accent-hover: #dab282;
+    --accent-text: #13191f;
+    --item-active: rgba(202, 156, 104, 0.18);
+    --item-hover: rgba(202, 156, 104, 0.1);
+    --popover-bg: #171e25;
+    --bg-canvas: #0d1115;
+}
+:root[data-theme="river_amber"][data-mode="light"] {
+    --bg-body: #e4e9ef;
+    --bg-sidebar: #d4dde6;
+    --bg-card: #ffffff;
+    --border-color: #a7b8c7;
+    --text-main: #131a22;
+    --text-muted: #576b7e;
+    --accent: #9a6d36;
+    --accent-hover: #b38042;
+    --accent-text: #ffffff;
+    --item-active: #c5d2df;
+    --item-hover: #cbd7e3;
+    --popover-bg: #ffffff;
+    --bg-canvas: #98adbe;
 }
 
-/* 5. Nordic Pastel Slate */
-:root[data-theme="nordic_pastel"] {
-    --bg-body: #657166; --bg-sidebar: #4F5A50; --bg-card: #FDE8D3;
-    --border-color: #CFD6C4; --text-main: #1F2722; --text-muted: #4A564D;
-    --accent: #99CDD8; --accent-hover: #7ABAC8; --accent-text: #1F2722;
-    --item-active: #5E6A5F; --item-hover: #576258; --popover-bg: #FFFFFF;
-    --bg-canvas: #3F4740;
-}
-
+/* ==========================================================================
+   ОБЩИЕ СТИЛИ ПРИЛОЖЕНИЯ
+   ========================================================================== */
 * { box-sizing: border-box; }
 
 body {
@@ -187,7 +412,7 @@ input, button, textarea, select {
     max-width: 500px;
     width: 100%;
     text-align: center;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
 }
 .welcome-card h2 { margin-top: 0; color: var(--accent); font-size: 22px; }
 .welcome-card p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
@@ -250,87 +475,6 @@ input, button, textarea, select {
 .brand-header { margin-bottom: 12px; padding: 0 2px; }
 .brand-title { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; }
 
-.workspace-block {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin-bottom: 10px;
-    gap: 6px;
-}
-.workspace-name-wrap {
-    display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1; cursor: pointer;
-}
-.workspace-name {
-    font-size: 13px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.edit-icon { font-size: 11px; opacity: 0.6; }
-.workspace-name-wrap:hover .edit-icon { opacity: 1; }
-
-.workspace-edit-input {
-    width: 100%; background: var(--bg-body); border: 1px solid var(--accent); border-radius: 3px;
-    color: var(--text-main); font-family: inherit; font-size: 12px; padding: 2px 6px; outline: none;
-}
-
-.create-menu-wrapper {
-    position: relative;
-    margin-bottom: 12px;
-}
-.btn-create-main {
-    width: 100%;
-    background: transparent;
-    color: var(--text-main);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-family: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.15s ease;
-}
-.btn-create-main:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background-color: rgba(255, 255, 255, 0.02);
-}
-.create-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    width: 100%;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    z-index: 1050;
-}
-.create-dropdown.open { display: block; }
-.create-dropdown-item {
-    padding: 8px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-main);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: background-color 0.15s, color 0.15s;
-}
-.create-dropdown-item:hover {
-    background-color: var(--item-active);
-    color: var(--accent);
-}
-
 #tree-container {
     flex: 1;
     overflow-y: auto;
@@ -358,7 +502,6 @@ input, button, textarea, select {
 }
 .folder-docs.collapsed { display: none; }
 
-.doc-list-root { list-style: none; margin: 0; padding: 0; }
 .doc-item {
     display: flex; justify-content: space-between; align-items: center;
     padding: 6px 8px; margin-bottom: 2px; border-radius: 4px;
@@ -368,9 +511,6 @@ input, button, textarea, select {
 .doc-item:active { cursor: grabbing; }
 .doc-item:hover { background-color: var(--item-hover); }
 .doc-item.active { background-color: var(--item-active); font-weight: 700; color: var(--accent); }
-.doc-item.dragging { opacity: 0.35; background-color: var(--item-active); }
-.doc-item.drag-over-top { border-top: 2px solid var(--accent); }
-.doc-item.drag-over-bottom { border-bottom: 2px solid var(--accent); }
 .doc-drag-handle { display: inline-flex; align-items: center; margin-right: 6px; opacity: 0.35; cursor: grab; font-size: 11px; }
 .doc-item:hover .doc-drag-handle { opacity: 0.8; }
 .doc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
@@ -422,15 +562,17 @@ input, button, textarea, select {
     border-top: 1px solid var(--border-color);
     padding-top: 12px;
     margin-top: 10px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
 }
 
-/* Кнопка настроек */
 .btn-settings {
-    width: 100%;
+    flex: 1;
     background: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 7px 10px;
     font-size: 12px;
     font-family: inherit;
@@ -445,6 +587,24 @@ input, button, textarea, select {
 .btn-settings:hover {
     color: var(--text-main);
     border-color: var(--accent);
+}
+
+.btn-theme-mode {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 7px 9px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+.btn-theme-mode:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background-color: var(--item-hover);
 }
 
 /* Редактор и рабочая зона */
@@ -494,17 +654,12 @@ h1, h2, h3 { color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
 .ce-block--selected .ce-block__content { background-color: var(--item-active); }
 ::selection { background-color: var(--border-color); }
 
-.cdx-checklist__item-checkbox { border-color: var(--border-color) !important; }
-.cdx-checklist__item--checked .cdx-checklist__item-checkbox {
-    background-color: var(--accent) !important; border-color: var(--accent) !important;
-}
-
 /* --- МОДАЛЬНОЕ ОКНО НАСТРОЕК --- */
 #settingsOverlay {
     display: none;
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;
-    background-color: rgba(0, 0, 0, 0.65);
+    background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: 3000;
@@ -519,11 +674,11 @@ h1, h2, h3 { color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
     border-radius: 12px;
     width: 780px;
     max-width: 94vw;
-    height: 520px;
-    max-height: 88vh;
+    height: 540px;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
     overflow: hidden;
     animation: settingsFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -753,7 +908,7 @@ input:checked + .slider:before {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(0, 0, 0, 0.15);
     flex-shrink: 0;
 }
 
@@ -787,12 +942,12 @@ input:checked + .slider:before {
     overflow: hidden;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    background: var(--bg-canvas, #15221e);
+    background: var(--bg-canvas);
 }
 
 .affine-viewport {
-    background-color: var(--bg-canvas, #15221e) !important;
-    background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.2px, transparent 1.2px) !important;
+    background-color: var(--bg-canvas) !important;
+    background-image: radial-gradient(rgba(128, 128, 128, 0.25) 1.2px, transparent 1.2px) !important;
     background-size: 24px 24px !important;
     width: 100%;
     height: 100%;
@@ -814,7 +969,7 @@ input:checked + .slider:before {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 5px 10px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
 }
 
 .dock-group {
@@ -853,24 +1008,6 @@ input:checked + .slider:before {
     background-color: var(--item-active);
 }
 
-.color-dot {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: transform 0.15s;
-}
-
-.color-dot:hover {
-    transform: scale(1.2);
-}
-
-.color-dot.active {
-    border-color: #fff;
-    transform: scale(1.15);
-}
-
 .zoom-indicator {
     font-size: 11px;
     font-family: monospace;
@@ -901,7 +1038,7 @@ input:checked + .slider:before {
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
     outline: none;
     overflow: visible;
     user-select: none;
@@ -909,27 +1046,22 @@ input:checked + .slider:before {
     min-height: 110px;
 }
 
-.affine-element.dragging {
-    opacity: 0.9;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
-}
-
 /* ЗАМЕТКА */
 .affine-element.card-theme-note {
     background-color: var(--accent) !important;
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    color: var(--accent-text, #111A19) !important;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    color: var(--accent-text) !important;
 }
 
 .affine-element.card-theme-note .affine-el-header {
-    background: rgba(0, 0, 0, 0.1);
-    color: var(--accent-text, #111A19);
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--accent-text);
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
 }
 
 .affine-element.card-theme-note .sticky-text {
-    color: var(--accent-text, #111A19);
+    color: var(--accent-text);
 }
 
 /* ДОКУМЕНТ */
@@ -940,7 +1072,7 @@ input:checked + .slider:before {
 }
 
 .affine-element.card-theme-doc .affine-el-header {
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.06);
     color: var(--text-main);
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
@@ -952,12 +1084,12 @@ input:checked + .slider:before {
     bottom: calc(100% + 6px);
     left: 0;
     display: none;
-    background: var(--bg-sidebar, #1C2E28);
-    border: 1px solid var(--border-color, #38594E);
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 3px 6px;
     gap: 4px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     z-index: 100;
     white-space: nowrap;
 }
@@ -969,9 +1101,9 @@ input:checked + .slider:before {
 }
 
 .sticky-format-toolbar .tb-btn {
-    background: var(--bg-card, #1E332D);
-    color: var(--text-main, #FFFFFF);
-    border: 1px solid var(--border-color, #38594E);
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 3px 8px;
     font-size: 11px;
@@ -986,8 +1118,8 @@ input:checked + .slider:before {
 }
 
 .sticky-format-toolbar .tb-btn:hover {
-    background: var(--item-active, #2C4B41);
-    color: var(--accent, #F8E794);
+    background: var(--item-active);
+    color: var(--accent);
 }
 
 /* Шапка карточки */
@@ -1009,7 +1141,6 @@ input:checked + .slider:before {
     gap: 6px;
 }
 
-/* Бейдж типа карточки */
 .element-type-badge {
     font-size: 10px;
     font-weight: 800;
@@ -1021,17 +1152,6 @@ input:checked + .slider:before {
     user-select: none;
 }
 
-.note-badge {
-    background: rgba(0, 0, 0, 0.15);
-    color: inherit;
-}
-
-.doc-badge {
-    background: var(--accent);
-    color: var(--accent-text, #111A19);
-}
-
-/* Ручка перемещения и закрытия */
 .el-drag-handle {
     font-size: 15px;
     opacity: 0.75;
@@ -1042,10 +1162,6 @@ input:checked + .slider:before {
     cursor: grab;
     user-select: none;
     padding: 2px;
-}
-
-.el-drag-handle:hover {
-    opacity: 1;
 }
 
 .el-controls {
@@ -1076,8 +1192,6 @@ input:checked + .slider:before {
 }
 
 /* Текстовые блоки заметок и документов */
-.sticky-text.contenteditable-text,
-.doc-link-text.contenteditable-text,
 .contenteditable-text {
     flex: 1;
     width: 100%;
@@ -1096,11 +1210,10 @@ input:checked + .slider:before {
     user-select: text;
 }
 
-/* Блок заголовка документа */
 .doc-link-content {
     padding: 6px 10px 4px 10px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .doc-link-title.contenteditable-title {
@@ -1114,46 +1227,6 @@ input:checked + .slider:before {
     cursor: text;
     user-select: text;
     line-height: 1.35;
-}
-
-/* Скроллбары */
-.sticky-text::-webkit-scrollbar,
-.doc-link-text::-webkit-scrollbar,
-.contenteditable-text::-webkit-scrollbar {
-    width: 4px;
-}
-
-.sticky-text::-webkit-scrollbar-track,
-.doc-link-text::-webkit-scrollbar-track,
-.contenteditable-text::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sticky-text::-webkit-scrollbar-thumb,
-.doc-link-text::-webkit-scrollbar-thumb,
-.contenteditable-text::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-}
-
-.sticky-text::-webkit-scrollbar-thumb:hover,
-.doc-link-text::-webkit-scrollbar-thumb:hover,
-.contenteditable-text::-webkit-scrollbar-thumb:hover {
-    background: var(--accent);
-}
-
-/* Уголок изменения размера */
-.resize-handle {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 14px;
-    height: 14px;
-    cursor: nwse-resize;
-    border-right: 3px solid rgba(255, 255, 255, 0.8);
-    border-bottom: 3px solid rgba(255, 255, 255, 0.8);
-    border-bottom-right-radius: 6px;
-    z-index: 10;
 }
 
 /* Порты стрелок */
@@ -1170,8 +1243,7 @@ input:checked + .slider:before {
     z-index: 10;
 }
 
-.affine-element:hover .conn-port,
-.mode-connector .conn-port {
+.affine-element:hover .conn-port {
     opacity: 0.95;
 }
 
@@ -1180,42 +1252,36 @@ input:checked + .slider:before {
     transform: scale(1.3);
 }
 
-.port-top    { top: -6px; left: 50%; transform: translateX(-50%); }
-.port-bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
-.port-left   { left: -6px; top: 50%; transform: translateY(-50%); }
-.port-right  { right: -6px; top: 50%; transform: translateY(-50%); }
+.port-right { right: -6px; top: 50%; transform: translateY(-50%); }
+
 /* =========================================================
    КАСТОМИЗАЦИЯ ЧЕКБОКСОВ ПОД ЦВЕТ АКТИВНОЙ ТЕМЫ РАДИАНА
    ========================================================= */
 
-/* 1. Нативные чекбоксы HTML */
 input[type="checkbox"] {
   accent-color: var(--accent) !important;
   cursor: pointer;
 }
 
-/* 2. Неотмеченный чекбокс (убираем ядовито-белый фон, ставим цвет карточки темы) */
 .cdx-checklist__item-checkbox,
 .cdx-checklist__item__checkbox,
 [class*="checklist"] [class*="checkbox"],
 .cdx-checklist__item::before {
-  background: var(--bg-card, #21262d) !important;
-  background-color: var(--bg-card, #21262d) !important;
-  border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.2)) !important;
+  background: var(--bg-card) !important;
+  background-color: var(--bg-card) !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 4px !important;
   box-shadow: none !important;
   transition: background-color 0.15s ease, border-color 0.15s ease !important;
   cursor: pointer;
 }
 
-/* Наведение на неотмеченный чекбокс */
 .cdx-checklist__item:hover .cdx-checklist__item-checkbox,
 .cdx-checklist__item:hover [class*="checkbox"],
 .cdx-checklist__item:hover::before {
   border-color: var(--accent) !important;
 }
 
-/* 3. Отмеченный чекбокс (строго в цвет активной темы Радиана) */
 .cdx-checklist__item--checked .cdx-checklist__item-checkbox,
 .cdx-checklist__item--checked .cdx-checklist__item__checkbox,
 .cdx-checklist__item--checked [class*="checkbox"],
@@ -1225,24 +1291,21 @@ input[type="checkbox"] {
   border-color: var(--accent) !important;
 }
 
-/* 4. Сама белая галочка (псевдоэлемент ::after в Editor.js) */
 .cdx-checklist__item--checked .cdx-checklist__item-checkbox::after,
 .cdx-checklist__item--checked [class*="checkbox"]::after,
 .cdx-checklist__item--checked::after {
   border-color: var(--accent-text, #ffffff) !important;
 }
 
-/* 5. Галочка, если отрисована через SVG */
 .cdx-checklist__item--checked [class*="checkbox"] svg,
 .cdx-checklist__item--checked [class*="checkbox"] svg path {
   stroke: var(--accent-text, #ffffff) !important;
   fill: transparent !important;
 }
 
-/* 6. Текст выполненного пункта (зачеркивание и приглушение цвета) */
 .cdx-checklist__item--checked .cdx-checklist__item-text,
 .cdx-checklist__item--checked [class*="text"] {
-  color: var(--text-muted, #8b949e) !important;
+  color: var(--text-muted) !important;
   text-decoration: line-through !important;
   opacity: 0.75 !important;
 }

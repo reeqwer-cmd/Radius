@@ -13,7 +13,7 @@ class Api:
             cursor = conn.cursor()
             cursor.execute("SELECT value FROM settings WHERE key = 'theme'")
             row = cursor.fetchone()
-            return row[0] if row else "emerald_green"
+            return row[0] if row else "american_silver"
         finally:
             conn.close()
 
@@ -23,6 +23,26 @@ class Api:
             with conn:
                 cursor = conn.cursor()
                 cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('theme', ?)", (theme_name,))
+            return True
+        finally:
+            conn.close()
+
+    def get_theme_mode(self):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'theme_mode'")
+            row = cursor.fetchone()
+            return row[0] if row else "light"
+        finally:
+            conn.close()
+
+    def set_theme_mode(self, mode):
+        conn = get_db_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('theme_mode', ?)", (mode,))
             return True
         finally:
             conn.close()
@@ -638,7 +658,7 @@ class Api:
         finally:
             conn.close()
 
-    # --- КАНБАН ПРОЕКТА (МОДУЛЬ РАБОЧЕГО ПРОСТРАНСТВА) ---
+    # --- КАНБАН ПРОЕКТА ---
     def get_workspace_kanban(self, ws_id):
         conn = get_db_connection()
         try:
