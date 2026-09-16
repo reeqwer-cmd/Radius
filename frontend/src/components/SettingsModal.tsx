@@ -38,9 +38,16 @@ const THEMES: ThemeItem[] = [
 ];
 
 const FONTS = [
-  { id: 'Inter', name: 'Inter', desc: 'Чистый интерфейсный гротеск' },
-  { id: 'Playfair Display', name: 'Playfair Display', desc: 'Классическая элегантная антиква' },
-  { id: 'EB Garamond', name: 'EB Garamond', desc: 'Традиционный книжный шрифт' },
+  { id: 'Inter', name: 'Inter', desc: 'Чистый современный гротеск' },
+  { id: 'Fira Sans', name: 'Fira Sans', desc: 'Четкий технический гротеск' },
+  { id: 'PT Sans', name: 'PT Sans', desc: 'Универсальный нейтральный шрифт' },
+  { id: 'IBM Plex Serif', name: 'IBM Plex Serif', desc: 'Строгая деловая антиква' },
+  { id: 'PT Serif', name: 'PT Serif', desc: 'Классическая книжная антиква' },
+  { id: 'Tinos', name: 'Tinos', desc: 'Элегантная академическая антиква' },
+  { id: 'Charis SIL', name: 'Charis SIL', desc: 'Печатная романская типографика' },
+  { id: 'Liter', name: 'Liter', desc: 'Винтажный печатный шрифт' },
+  { id: 'Playfair Display', name: 'Playfair Display', desc: 'Премиальная контрастная антиква' },
+  { id: 'EB Garamond', name: 'EB Garamond', desc: 'Традиционная ренессансная антиква' },
   { id: 'Alumni Sans', name: 'Alumni Sans', desc: 'Узкий стильный современный шрифт' }
 ];
 
@@ -116,7 +123,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <div className="settings-section-title" style={{ margin: 0 }}>РЕЖИМ И ПАЛИТРА</div>
 
-                  {/* Переключатель День / Ночь */}
                   <div style={{ display: 'flex', gap: 6, background: 'var(--bg-body)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
                     <button
                       type="button"

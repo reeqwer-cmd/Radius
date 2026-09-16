@@ -6,7 +6,7 @@ import tempfile
 import subprocess
 import time
 
-APP_VERSION = "1.0.7"
+APP_VERSION = "1.0.8"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 
 def get_executable_path():
@@ -95,7 +95,7 @@ def download_and_install_update(download_url):
 
     bat_path = os.path.join(temp_dir, "radian_patcher.bat")
 
-    # Скрипт патчинга: ждет освобождения файла процессом и заменяет его без дедлоков
+    # Патчер без зависающих пайпов и с циклом ожидания разблокировки файла
     bat_script = f"""@echo off
 chcp 65001 > nul
 timeout /t 1 /nobreak > nul
@@ -114,7 +114,7 @@ exit
     with open(bat_path, "w", encoding="utf-8") as f:
         f.write(bat_script)
 
-    # Запуск без отображения консольного окна
+    # Флаг CREATE_NO_WINDOW подавляет черное окно консоли
     creation_flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
     subprocess.Popen(

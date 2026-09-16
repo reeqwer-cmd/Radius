@@ -19,7 +19,7 @@ export default function App() {
   const [currentDoc, setCurrentDoc] = useState<LoadedDocument | null>(null);
   const [docTitle, setDocTitle] = useState<string>('');
   
-  // Тема оформления и режим День / Ночь
+  // Цветовая палитра и режим День/Ночь
   const [theme, setTheme] = useState<string>('american_silver');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
 
