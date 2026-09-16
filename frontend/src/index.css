@@ -1321,3 +1321,54 @@ input[type="checkbox"] {
   text-decoration: line-through !important;
   opacity: 0.75 !important;
 }
+/* =========================================================
+   КАСТОМИЗАЦИЯ СКРОЛЛБАРОВ (ТОНКИЕ, АККУРАТНЫЕ, ПОД ТЕМУ)
+   ========================================================= */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+/* Chromium / WebView2 */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
+
+/* Специфично для дерева документов сайдбара */
+#tree-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+#tree-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#tree-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+}
+
+:root[data-mode="light"] #tree-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+#tree-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
