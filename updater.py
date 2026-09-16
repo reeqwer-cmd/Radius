@@ -6,7 +6,7 @@ import tempfile
 import subprocess
 import time
 
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 
 def get_executable_path():
@@ -47,7 +47,6 @@ def check_for_updates():
             download_url = None
             assets = latest_release.get("assets", [])
 
-            # Ищем любой исполняемый файл в ассетах релиза
             for asset in assets:
                 name = asset.get("name", "").lower()
                 if name.endswith(".exe"):
@@ -94,21 +93,11 @@ def download_and_install_update(download_url):
     except Exception as e:
         return {"status": "error", "message": f"Не удалось загрузить обновление: {e}"}
 
-    pid = os.getpid()
     bat_path = os.path.join(temp_dir, "radian_patcher.bat")
 
-    # Скрипт патчинга: ждет закрытия процесса, циклически перезаписывает exe и запускает его
+    # Скрипт патчинга: ждет освобождения файла процессом и заменяет его без дедлоков
     bat_script = f"""@echo off
 chcp 65001 > nul
-
-:wait_loop
-tasklist /fi "PID eq {pid}" | findstr /i "{pid}" > nul
-if not errorlevel 1 (
-    taskkill /f /pid {pid} > nul 2>&1
-    timeout /t 1 /nobreak > nul
-    goto wait_loop
-)
-
 timeout /t 1 /nobreak > nul
 
 :move_loop
@@ -125,12 +114,8 @@ exit
     with open(bat_path, "w", encoding="utf-8") as f:
         f.write(bat_script)
 
-    # Запуск батника в полностью автономном detached-процессе
-    creation_flags = 0
-    if os.name == 'nt':
-        DETACHED_PROCESS = 0x00000008
-        CREATE_NEW_PROCESS_GROUP = 0x00000200
-        creation_flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    # Запуск без отображения консольного окна
+    creation_flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
     subprocess.Popen(
         ["cmd.exe", "/c", bat_path],
@@ -138,7 +123,6 @@ exit
         close_fds=True
     )
 
-    # 1. Корректно закрываем окна pywebview для освобождения дескрипторов
     try:
         import webview
         for win in webview.windows:
@@ -146,7 +130,5 @@ exit
     except Exception:
         pass
 
-    time.sleep(0.3)
-
-    # 2. Мгновенно выходим без всплывающих окон
+    time.sleep(0.2)
     os._exit(0)
