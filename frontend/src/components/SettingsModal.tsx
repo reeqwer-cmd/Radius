@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, CheckCircle, DownloadCloud, Check, Sun, Moon } from 'lucide-react';
+import { RefreshCw, CheckCircle, DownloadCloud, Check, Sun, Moon, Sparkles } from 'lucide-react';
 import { PyWebViewAPI, UpdateInfo } from '../types/api';
 
 interface SettingsModalProps {
@@ -7,11 +7,13 @@ interface SettingsModalProps {
   currentTheme: string;
   currentFont: string;
   themeMode: 'light' | 'dark';
+  uiStyle: 'classic' | 'liquid_glass';
   modulesState: Record<string, boolean>;
   api: PyWebViewAPI | null;
   onSelectTheme: (themeId: string) => void;
   onSelectFont: (fontName: string) => void;
   onSelectThemeMode: (mode: 'light' | 'dark') => void;
+  onSelectUiStyle: (style: 'classic' | 'liquid_glass') => void;
   onToggleModule: (moduleKey: string, enabled: boolean) => void;
   onClose: () => void;
 }
@@ -56,11 +58,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentTheme,
   currentFont,
   themeMode,
+  uiStyle,
   modulesState,
   api,
   onSelectTheme,
   onSelectFont,
   onSelectThemeMode,
+  onSelectUiStyle,
   onToggleModule,
   onClose
 }) => {
@@ -120,48 +124,90 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="settings-body">
             {activeTab === 'themes' && (
               <div className="settings-tab-pane active">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div className="settings-section-title" style={{ margin: 0 }}>РЕЖИМ И ПАЛИТРА</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                  <div className="settings-section-title" style={{ margin: 0 }}>ВНЕШНИЙ ВИД И СТИЛЬ</div>
 
-                  <div style={{ display: 'flex', gap: 6, background: 'var(--bg-body)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectThemeMode('light')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        background: themeMode === 'light' ? 'var(--accent)' : 'transparent',
-                        color: themeMode === 'light' ? 'var(--accent-text)' : 'var(--text-muted)'
-                      }}
-                    >
-                      <Sun size={13} /> День
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSelectThemeMode('dark')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        background: themeMode === 'dark' ? 'var(--accent)' : 'transparent',
-                        color: themeMode === 'dark' ? 'var(--accent-text)' : 'var(--text-muted)'
-                      }}
-                    >
-                      <Moon size={13} /> Ночь
-                    </button>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Кнопка включения Liquid Glass */}
+                    <div style={{ display: 'flex', gap: 3, background: 'var(--bg-body)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => onSelectUiStyle('classic')}
+                        style={{
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: uiStyle === 'classic' ? 'var(--accent)' : 'transparent',
+                          color: uiStyle === 'classic' ? 'var(--accent-text)' : 'var(--text-muted)'
+                        }}
+                      >
+                        Классика
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectUiStyle('liquid_glass')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: uiStyle === 'liquid_glass' ? 'var(--accent)' : 'transparent',
+                          color: uiStyle === 'liquid_glass' ? 'var(--accent-text)' : 'var(--text-muted)'
+                        }}
+                      >
+                        <Sparkles size={12} /> Liquid Glass
+                      </button>
+                    </div>
+
+                    {/* День / Ночь */}
+                    <div style={{ display: 'flex', gap: 3, background: 'var(--bg-body)', padding: 3, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => onSelectThemeMode('light')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: themeMode === 'light' ? 'var(--accent)' : 'transparent',
+                          color: themeMode === 'light' ? 'var(--accent-text)' : 'var(--text-muted)'
+                        }}
+                      >
+                        <Sun size={12} /> День
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectThemeMode('dark')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: themeMode === 'dark' ? 'var(--accent)' : 'transparent',
+                          color: themeMode === 'dark' ? 'var(--accent-text)' : 'var(--text-muted)'
+                        }}
+                      >
+                        <Moon size={12} /> Ночь
+                      </button>
+                    </div>
                   </div>
                 </div>
 

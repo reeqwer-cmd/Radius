@@ -19,9 +19,10 @@ export default function App() {
   const [currentDoc, setCurrentDoc] = useState<LoadedDocument | null>(null);
   const [docTitle, setDocTitle] = useState<string>('');
   
-  // Цветовая палитра и режим День/Ночь
+  // Цветовая палитра, режим День/Ночь и стиль UI (Классика / Liquid Glass)
   const [theme, setTheme] = useState<string>('american_silver');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
+  const [uiStyle, setUiStyle] = useState<'classic' | 'liquid_glass'>('classic');
 
   const [font, setFont] = useState<string>('Inter');
   const [modulesState, setModulesState] = useState<Record<string, boolean>>({});
@@ -55,6 +56,9 @@ export default function App() {
       const finalMode = (savedMode === 'dark' || savedMode === 'light') ? savedMode : 'light';
       setThemeMode(finalMode);
       document.documentElement.setAttribute('data-mode', finalMode);
+
+      // Инициализация стиля Liquid Glass по умолчанию (classic)
+      document.documentElement.setAttribute('data-ui-style', 'classic');
 
       const savedFont = await api.get_font();
       setFont(savedFont || 'Inter');
@@ -180,6 +184,11 @@ export default function App() {
   const handleToggleThemeMode = async () => {
     const nextMode = themeMode === 'light' ? 'dark' : 'light';
     await handleApplyThemeMode(nextMode);
+  };
+
+  const handleApplyUiStyle = (style: 'classic' | 'liquid_glass') => {
+    setUiStyle(style);
+    document.documentElement.setAttribute('data-ui-style', style);
   };
 
   const handleApplyFont = async (fontName: string) => {
@@ -351,11 +360,13 @@ export default function App() {
         currentTheme={theme}
         currentFont={font}
         themeMode={themeMode}
+        uiStyle={uiStyle}
         modulesState={modulesState}
         api={api}
         onSelectTheme={handleApplyTheme}
         onSelectFont={handleApplyFont}
         onSelectThemeMode={handleApplyThemeMode}
+        onSelectUiStyle={handleApplyUiStyle}
         onToggleModule={handleToggleModule}
         onClose={() => setIsSettingsOpen(false)}
       />

@@ -6,7 +6,7 @@ import tempfile
 import subprocess
 import time
 
-APP_VERSION = "1.0.8"
+APP_VERSION = "1.0.9"
 GITHUB_REPO = "reeqwer-cmd/Radius"
 
 def get_executable_path():

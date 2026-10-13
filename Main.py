@@ -1,7 +1,11 @@
 import os
 import sys
 
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3 --no-sandbox"
+# Включаем флаги Chromium для аппаратного ускорения и поддержки прозрачности/размытия
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
+    "--disable-logging --log-level=3 --no-sandbox "
+    "--enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy"
+)
 
 import webview
 from database import init_db
@@ -31,7 +35,7 @@ if __name__ == '__main__':
         width=1180,
         height=860,
         min_size=(800, 520),
-        background_color='#284139'
+        background_color='#191b1c'
     )
     
     webview.start(gui='qt')
