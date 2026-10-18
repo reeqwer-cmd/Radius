@@ -24,6 +24,7 @@ interface SidebarProps {
   onDeleteWorkspacePrompt: (wsId: number) => void;
   onCreateFolder: (name: string) => Promise<void>;
   onCreateDoc: (title: string, folderId: number | null, type: DocType) => Promise<void>;
+  onImportPdf: (folderId: number | null) => void;
   onRenameWorkspace: (name: string) => Promise<void>;
   onRenameFolder: (id: number, name: string) => Promise<void>;
   onDeleteFolder: (id: number) => Promise<void>;
@@ -56,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteWorkspacePrompt,
   onCreateFolder,
   onCreateDoc,
+  onImportPdf,
   onRenameWorkspace,
   onRenameFolder,
   onDeleteFolder,
@@ -251,6 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const renderDocIcon = (type: DocType) => {
     if (type === 'flipchart') return <Layout size={14} />;
     if (type === 'kanban') return <Columns3 size={14} />;
+    if (type === 'pdf') return <FileText size={14} style={{ color: '#e74c3c' }} />;
     return <FileText size={14} />;
   };
 
@@ -679,6 +682,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   gap: 8,
                   fontSize: 12,
                   cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  onImportPdf(null);
+                }}
+              >
+                <FileText size={14} style={{ color: '#e74c3c' }} />
+                <span>Импортировать PDF</span>
+              </button>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-main)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  cursor: 'pointer',
                   textAlign: 'left',
                   borderTop: '1px solid var(--border-color)'
                 }}
@@ -755,6 +779,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => setInlineInput({ visible: true, type: 'kanban', folderId: folder.id, value: '' })}
                       >
                         <Columns3 size={13} />
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="Импортировать PDF в папку" 
+                        onClick={() => onImportPdf(folder.id)}
+                      >
+                        <FileText size={13} style={{ color: '#e74c3c' }} />
                       </button>
                       <button 
                         className="action-btn" 
@@ -857,7 +888,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* Футер сайдбара: Настройки + Быстрый переключатель День/Ночь */}
+        {/* Футер сайдбара: только Настройки и переключатель темы */}
         <div className="sidebar-footer">
           <button className="btn-settings" onClick={onOpenSettings}>
             <Settings size={14} />

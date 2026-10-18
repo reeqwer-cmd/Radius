@@ -3,3 +3,4 @@ PyQt6
 PyQt6-WebEngine
 pyinstaller
 Pillow
+pypdf>=4.0.0

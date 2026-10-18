@@ -1,4 +1,4 @@
-export type DocType = 'document' | 'flipchart' | 'kanban';
+export type DocType = 'document' | 'flipchart' | 'kanban' | 'pdf';
 
 export interface FolderItem {
   id: number;
@@ -107,6 +107,7 @@ export interface PyWebViewAPI {
   create_document(wsId: number, title: string, folderId?: number | null, docType?: DocType): Promise<number>;
   create_flipchart(wsId: number, title?: string, folderId?: number | null): Promise<number>;
   create_kanban(wsId: number, title?: string, folderId?: number | null): Promise<number>;
+  import_pdf_document(wsId: number, folderId?: number | null): Promise<number | { status: string; message?: string }>;
   load_document(docId: number): Promise<LoadedDocument | null>;
   save_document(docId: number, title: string, data: any): Promise<SaveDocResponse>;
   reorder_tree_items(wsId: number, items: TreeOrderItem[]): Promise<boolean>;

@@ -4,6 +4,7 @@ import webview
 from datetime import datetime
 from database import get_db_connection
 import updater
+from pypdf import PdfReader
 
 
 class Api:
@@ -511,6 +512,67 @@ class Api:
 
     def create_kanban(self, ws_id, title="Новый канбан", folder_id=None):
         return self.create_document(ws_id, title, folder_id=folder_id, doc_type="kanban")
+
+    def import_pdf_document(self, ws_id, folder_id=None):
+        try:
+            chosen_files = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=('PDF Files (*.pdf)', 'All Files (*.*)')
+            )
+            if not chosen_files:
+                return {"status": "cancelled"}
+
+            file_path = chosen_files[0]
+            reader = PdfReader(file_path)
+            num_pages = len(reader.pages)
+            file_title = os.path.basename(file_path)
+
+            pages_data = []
+            for i, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
+                pages_data.append({
+                    "page_number": i + 1,
+                    "text": text
+                })
+
+            pdf_content = {
+                "total_pages": num_pages,
+                "pages": pages_data
+            }
+
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn = get_db_connection()
+            try:
+                with conn:
+                    cursor = conn.cursor()
+                    if folder_id is None:
+                        cursor.execute(
+                            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM ("
+                            "  SELECT sort_order FROM folders WHERE workspace_id = ?"
+                            "  UNION ALL"
+                            "  SELECT sort_order FROM documents WHERE workspace_id = ? AND folder_id IS NULL"
+                            ")",
+                            (ws_id, ws_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM documents WHERE workspace_id = ? AND folder_id = ?",
+                            (ws_id, folder_id)
+                        )
+                    next_order = cursor.fetchone()[0]
+
+                    cursor.execute(
+                        "INSERT INTO documents (workspace_id, folder_id, title, content, type, sort_order, updated_at) "
+                        "VALUES (?, ?, ?, ?, 'pdf', ?, ?)",
+                        (ws_id, folder_id, file_title, json.dumps(pdf_content, ensure_ascii=False), next_order, now)
+                    )
+                    new_id = cursor.lastrowid
+                return new_id
+            finally:
+                conn.close()
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def load_document(self, doc_id):
         conn = get_db_connection()

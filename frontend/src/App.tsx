@@ -5,7 +5,8 @@ import { EditorView } from './components/EditorView';
 import { FlipchartView } from './components/FlipchartView';
 import { CalendarView } from './components/CalendarView';
 import { KanbanView } from './components/KanbanView';
-import { SettingsModal } from './components/SettingsModal';
+import { PdfViewer } from './components/PdfViewer';
+import { SettingsModal, restoreSavedAppearance, UiStyleType, STORAGE_KEYS } from './components/SettingsModal';
 import { WorkspaceTree, LoadedDocument, DocType, UpdateInfo, WorkspaceItem, TreeOrderItem, KanbanBoardData } from './types/api';
 
 export default function App() {
@@ -19,10 +20,10 @@ export default function App() {
   const [currentDoc, setCurrentDoc] = useState<LoadedDocument | null>(null);
   const [docTitle, setDocTitle] = useState<string>('');
   
-  // Цветовая палитра, режим День/Ночь и стиль UI (Классика / Liquid Glass)
-  const [theme, setTheme] = useState<string>('american_silver');
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
-  const [uiStyle, setUiStyle] = useState<'classic' | 'liquid_glass'>('classic');
+  // Состояния темы и UI (по умолчанию GNOME)
+  const [theme, setTheme] = useState<string>('stone_hearth');
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('dark');
+  const [uiStyle, setUiStyle] = useState<UiStyleType>('gnome');
 
   const [font, setFont] = useState<string>('Inter');
   const [modulesState, setModulesState] = useState<Record<string, boolean>>({});
@@ -35,35 +36,21 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [initialWsName, setInitialWsName] = useState('Основное пространство');
 
-  const [updateModal, setUpdateModal] = useState<{
-    isOpen: boolean;
-    info: UpdateInfo | null;
-    isUpdating: boolean;
-  }>({ isOpen: false, info: null, isUpdating: false });
-
   const saveTimerRef = useRef<any>(null);
+
+  // Инициализация при старте с восстановлением всех сохраненных настроек
+  useEffect(() => {
+    const restored = restoreSavedAppearance();
+    setUiStyle(restored.savedStyle);
+    setTheme(restored.savedTheme);
+    setThemeMode(restored.savedMode);
+    setFont(restored.savedFont);
+  }, []);
 
   useEffect(() => {
     if (!isReady || !api) return;
 
     (async () => {
-      const savedTheme = await api.get_theme();
-      const finalTheme = savedTheme || 'american_silver';
-      setTheme(finalTheme);
-      document.documentElement.setAttribute('data-theme', finalTheme);
-
-      const savedMode = await api.get_theme_mode();
-      const finalMode = (savedMode === 'dark' || savedMode === 'light') ? savedMode : 'light';
-      setThemeMode(finalMode);
-      document.documentElement.setAttribute('data-mode', finalMode);
-
-      // Инициализация стиля Liquid Glass по умолчанию (classic)
-      document.documentElement.setAttribute('data-ui-style', 'classic');
-
-      const savedFont = await api.get_font();
-      setFont(savedFont || 'Inter');
-      document.documentElement.style.setProperty('--app-font', savedFont || 'Inter');
-
       const modules = await api.get_modules_state();
       setModulesState(modules || {});
 
@@ -78,13 +65,6 @@ export default function App() {
         setWorkspaceName(state.workspace_name!);
         await refreshTree(state.workspace_id!);
       }
-
-      try {
-        const update = await api.check_update();
-        if (update && update.has_update && update.download_url) {
-          setUpdateModal({ isOpen: true, info: update, isUpdating: false });
-        }
-      } catch {}
     })();
   }, [isReady, api]);
 
@@ -118,7 +98,7 @@ export default function App() {
       setCurrentDocId(id);
       setCurrentDoc(data);
       setDocTitle(data.title);
-      const badgeText = data.type === 'flipchart' ? 'Флипчарт готов' : (data.type === 'kanban' ? 'Канбан готов' : 'Готов');
+      const badgeText = data.type === 'flipchart' ? 'Флипчарт готов' : (data.type === 'kanban' ? 'Канбан готов' : (data.type === 'pdf' ? 'PDF документ' : 'Готов'));
       setStatus(badgeText);
     }
   };
@@ -150,6 +130,7 @@ export default function App() {
 
   const triggerAutoSave = (updatedContent?: any, newTitle?: string) => {
     if (activeView !== 'editor') return;
+    if (currentDoc?.type === 'pdf') return; // PDF не требует автосохранения текстового редактора
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setStatus('Изменения...');
 
@@ -171,13 +152,11 @@ export default function App() {
 
   const handleApplyTheme = async (themeId: string) => {
     setTheme(themeId);
-    document.documentElement.setAttribute('data-theme', themeId);
     if (api) await api.set_theme(themeId);
   };
 
   const handleApplyThemeMode = async (mode: 'light' | 'dark') => {
     setThemeMode(mode);
-    document.documentElement.setAttribute('data-mode', mode);
     if (api) await api.set_theme_mode(mode);
   };
 
@@ -186,14 +165,15 @@ export default function App() {
     await handleApplyThemeMode(nextMode);
   };
 
-  const handleApplyUiStyle = (style: 'classic' | 'liquid_glass') => {
+  const handleApplyUiStyle = (style: UiStyleType) => {
     setUiStyle(style);
-    document.documentElement.setAttribute('data-ui-style', style);
   };
 
   const handleApplyFont = async (fontName: string) => {
     setFont(fontName);
+    localStorage.setItem(STORAGE_KEYS.FONT_FAMILY, fontName);
     document.documentElement.style.setProperty('--app-font', fontName);
+    document.documentElement.style.setProperty('--font-main', fontName);
     if (api) await api.set_font(fontName);
   };
 
@@ -255,6 +235,17 @@ export default function App() {
     }
   };
 
+  const handleImportPdf = async (folderId: number | null = null) => {
+    if (!api || !workspaceId) return;
+    const res = await api.import_pdf_document(workspaceId, folderId);
+    if (typeof res === 'number') {
+      await refreshTree(workspaceId);
+      await loadDoc(res);
+    } else if (res && res.status === 'error') {
+      alert('Ошибка импорта PDF: ' + res.message);
+    }
+  };
+
   const handleReorderTree = async (items: TreeOrderItem[]) => {
     if (!api || !workspaceId) return;
     await api.reorder_tree_items(workspaceId, items);
@@ -292,6 +283,7 @@ export default function App() {
         onDeleteWorkspacePrompt={handleDeleteWorkspace}
         onCreateFolder={async name => { if (!api || !workspaceId) return; await api.create_folder(workspaceId, name); refreshTree(workspaceId); }}
         onCreateDoc={async (title, folderId, type: DocType) => { if (!api || !workspaceId) return; const newId = await api.create_document(workspaceId, title, folderId, type); await refreshTree(workspaceId); await loadDoc(newId); }}
+        onImportPdf={handleImportPdf}
         onRenameWorkspace={async name => { if (!api || !workspaceId) return; const updated = await api.rename_workspace(workspaceId, name); setWorkspaceName(updated); setAllWorkspaces(await api.get_all_workspaces()); }}
         onRenameFolder={async (id, name) => { if (!api || !workspaceId) return; await api.rename_folder(id, name); refreshTree(workspaceId); }}
         onDeleteFolder={async id => { if (!api || !workspaceId) return; await api.delete_folder(id); refreshTree(workspaceId); }}
@@ -302,8 +294,8 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <div id="main-content" style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', padding: activeView === 'calendar' ? '24px 32px' : (currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || activeView === 'project_kanban' ? '14px 20px' : '24px 48px 40px'), overflow: 'hidden', boxSizing: 'border-box' }}>
-        {activeView === 'editor' && (
+      <div id="main-content" style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', padding: activeView === 'calendar' ? '24px 32px' : (currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || currentDoc?.type === 'pdf' || activeView === 'project_kanban' ? '14px 20px' : '24px 48px 40px'), overflow: 'hidden', boxSizing: 'border-box' }}>
+        {activeView === 'editor' && currentDoc?.type !== 'pdf' && (
           <div className="top-nav" style={{ marginBottom: currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' ? '10px' : '20px' }}>
             <div className="title-input-wrap">
               <input type="text" className="doc-title-input" placeholder="Название документа" value={docTitle} onChange={e => { setDocTitle(e.target.value); triggerAutoSave(undefined, e.target.value); }} />
@@ -311,6 +303,17 @@ export default function App() {
             <div className="top-nav-actions">
               <span id="status" className="status-badge">{status}</span>
               <button className="btn-save" onClick={() => triggerAutoSave()}>Сохранить</button>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'editor' && currentDoc?.type === 'pdf' && (
+          <div className="top-nav" style={{ marginBottom: '10px' }}>
+            <div className="title-input-wrap">
+              <input type="text" className="doc-title-input" value={docTitle} readOnly style={{ opacity: 0.8, cursor: 'default' }} />
+            </div>
+            <div className="top-nav-actions">
+              <span id="status" className="status-badge">PDF читайка</span>
             </div>
           </div>
         )}
@@ -326,7 +329,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ flex: 1, position: 'relative', overflow: activeView === 'calendar' || currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || activeView === 'project_kanban' ? 'hidden' : 'auto', minHeight: 0 }}>
+        <div style={{ flex: 1, position: 'relative', overflow: activeView === 'calendar' || currentDoc?.type === 'flipchart' || currentDoc?.type === 'kanban' || currentDoc?.type === 'pdf' || activeView === 'project_kanban' ? 'hidden' : 'auto', minHeight: 0 }}>
           {activeView === 'calendar' && <CalendarView workspaceId={workspaceId} api={api} />}
 
           {activeView === 'project_kanban' && (
@@ -351,6 +354,10 @@ export default function App() {
               data={currentDoc.content}
               onChange={updated => triggerAutoSave(updated)}
             />
+          )}
+
+          {activeView === 'editor' && currentDoc && currentDoc.type === 'pdf' && (
+            <PdfViewer key={currentDocId} data={currentDoc.content} />
           )}
         </div>
       </div>
